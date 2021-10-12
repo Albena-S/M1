@@ -1,0 +1,4 @@
+INDEX VERSION 1.131+/home/e20210007011/Documents/M1/Logiciel/Dictionary/.metadata/.plugins/org.eclipse.jdt.core
+3449046141.index
+3417843689.index
+1865797976.index

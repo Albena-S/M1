@@ -1,0 +1,59 @@
+package Dictionary;
+
+import java.util.Arrays;
+import java.lang.Math;
+
+public class FastDictionary extends AbstractDictionary {
+
+	public FastDictionary(int n) {
+		super(n);
+	}
+	@Override
+	public int size() {
+		int nb=0;
+		for (int i = 0; i < keys.length; i++) {
+			if (keys[i]!=null)
+				nb++;
+		}
+		return nb;
+	}
+	@Override
+	int indexOf(Object key) {
+		int pos = Math.abs(key.hashCode()) % size; 
+		while ( pos < size && keys[pos] != null) {
+			if (!keys[pos].equals(key) )
+				pos++;
+			else
+				return pos;
+		}
+		return -1;
+	}
+	@Override
+	int newIndexOf(Object key) {
+		if (this.mustGrow())
+			grow();
+		int pos = Math.abs(key.hashCode()) % size; 
+		while ( true ) {
+			if (keys[pos]!= null)
+				pos = (pos+1) % size;
+			else
+				break;
+		}
+		return pos;
+	}
+	
+	private boolean mustGrow() {
+		return this.keys.length*(3/4) <= this.size;
+	}
+	private void grow() {
+		Object[] tamponKeys =  Arrays.copyOf(keys, this.size());
+		Object[] tamponValeurs =  Arrays.copyOf(valeurs, this.size());
+		this.keys = new Object[2*this.size()];
+		this.valeurs = new Object[this.size()];
+		for (int i = 0; i < this.size()/2; i++) {
+			this.put(tamponKeys[i], tamponValeurs[i]);
+		}
+		
+	}
+
+}

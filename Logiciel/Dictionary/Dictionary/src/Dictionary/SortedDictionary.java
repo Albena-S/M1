@@ -1,0 +1,26 @@
+package Dictionary;
+
+public class SortedDictionary extends AbstractDictionary {
+//	comme ca on a 2 tableaux keys - objet et comparable
+//	protected Comparable[] keys;
+//	protected Comparable[] values;
+//	pas la bonne solution
+	
+	public SortedDictionary(int n) {
+		super(n);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	int indexOf(Object key) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	int newIndexOf(Object key) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+}
