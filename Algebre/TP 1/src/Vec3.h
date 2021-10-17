@@ -142,24 +142,31 @@ public:
 
 
     Vec3 operator*(const Vec3 &p) {  // computes m.p
-        Vec3 res;              
+        Vec3 res = Vec3(0.,0.,0.);              
         //Pour acceder a un element de la matrice (*this)(i,j) et du point p[i]
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
-                res[i] += (*this)(i, j) * p[i];
-
+        for (int i = 0; i < 3; ++i){
+            for (int j = 0; j < 3; ++j){
+                res[i] += (*this)(i, j) * p[j];
+            }
+            std::cout << res[i]<<" ";
+        }
+        std::cout << "end "<<std::endl;
         return res;
     }
 
     Mat3 operator*(const Mat3 &m2) {
         Mat3 res;
         //Pour acceder a un element de la premiere matrice (*this)(i,j) et de la deuxième m2(k,l)
-        for(int i = 0; i < 3; ++i)
-        for(int j = 0; j < 3; ++j)
-            for(int k = 0; k < 3; ++k)
-            {
-                res(i,j) += (*this)(k,j) * m2(j,k);
+        for(int i = 0; i < 3; ++i){
+            for(int j = 0; j < 3; ++j){
+                for(int k = 0; k < 3; ++k)
+                {
+                    res(i,j) += (*this)(i,k) * m2(k,j);
+                }
+                std::cout << res(i,j)<<" ";
             }
+             std::cout << std::endl;
+        }
         return res;
     }
 
