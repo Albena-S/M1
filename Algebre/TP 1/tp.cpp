@@ -63,13 +63,13 @@ struct Mesh {
         //TODO: implémenter le calcul des normales par face
         //Attention commencer la fonction par triangle_normals.clear();
         //Iterer sur les triangles
-        Vec3 e_10,e_20,cross;
+        Vec3 e_10,e_20,cross,n;
         for (int i = 0; i < (int)triangles.size(); i++){
             e_10 = vertices[triangles[i][1]] - vertices[triangles[i][0]];
             e_20 = vertices[triangles[i][2]] - vertices[triangles[i][0]];
             n = Vec3::cross(e_10, e_20);
             n.normalize();
-            triangle_normals.push_back(Vec3::cross(e_10, e_20));  
+            triangle_normals.push_back(n);  
         }
         //La normal du triangle i est le resultat du produit vectoriel de deux ses arêtes e_10 et e_20 normalisé (e_10^e_20)
         //L'arete e_10 est représentée par le vecteur partant du sommet 0 (triangles[i][0]) au sommet 1 (triangles[i][1])
@@ -90,9 +90,12 @@ struct Mesh {
         for (int i = 0; i < (int) triangles.size(); i++){
         //Pour chaque triangle i
         //Ajouter la normal au triangle à celle de chacun des sommets
-            normals[]
+            for (int j = 0; j < 3; j++)
+                normals[triangles[i][j]] += triangle_normals[i];
         }    
         //Iterer sur les normales et les normaliser
+        for (int i = 0; i < (int) vertices.size(); i++)
+            normals[i].normalize();
 
 
     }
@@ -324,7 +327,7 @@ void init () {
 // ------------------------------------
 // Rendering.
 // ------------------------------------
-
+//mesh.vertices[i];
 void drawVector( Vec3 const & i_from, Vec3 const & i_to ) {
 
     glBegin(GL_LINES);
@@ -621,11 +624,14 @@ int main (int argc, char ** argv) {
     basis = Basis();
 
     //TODO: Appliquer une matrice de transformation aux points
-    mesh_transformation.rotation = Mat3::Identity();
+    mesh_transformation.rotation = Mat3::Identity()*0.25;//Mat3::diag(1., .5, 1.5);
     mesh_transformation.translation = Vec3( 1., 0., 0. );
 
+    std::cout << "here ";
+    mesh_transformation.rotation * mesh_transformation.rotation;
+
     for( unsigned int i = 0 ; i < mesh.vertices.size() ; ++i ) {
-        transformed_mesh.vertices.push_back( mesh.vertices[i] + mesh_transformation.translation );
+        transformed_mesh.vertices.push_back( mesh_transformation.rotation*mesh.vertices[i] + mesh_transformation.translation );
     }
 
 
