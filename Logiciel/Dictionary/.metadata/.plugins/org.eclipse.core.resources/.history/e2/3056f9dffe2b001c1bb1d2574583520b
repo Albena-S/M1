@@ -1,0 +1,30 @@
+package Dictionary;
+
+import java.util.Arrays;
+
+public class SortedDictionary extends AbstractDictionary {
+//	comme ca on a 2 tableaux keys - objet et comparable
+//	protected Comparable[] keys;
+//	protected Comparable[] values;
+//	pas la bonne solution
+	
+	public SortedDictionary(int n) {
+		super(n);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	int indexOf(Object key) {
+		return Arrays.binarySearch(this.keys,(Comparable<Object>) key);
+	}
+
+	@Override
+	int newIndexOf(Object key) {		
+		Object[] tamponKeys = new Object[size + 1];
+		System.arraycopy(tamponKeys, 0, this.keys, 0, size);
+		tamponKeys[size] = key;
+		Arrays.sort(tamponKeys);
+		return Arrays.binarySearch(tamponKeys,(Comparable<Object>) key);
+	}
+
+}

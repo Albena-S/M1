@@ -1,0 +1,47 @@
+package Dictionary;
+
+import java.util.Arrays;
+
+public class SortedDictionary extends AbstractDictionary {
+	//	comme ca on a 2 tableaux keys - objet et comparable
+	//	protected Comparable[] keys;
+	//	protected Comparable[] values;
+	//	pas la bonne solution
+
+	public SortedDictionary(int n) {
+		super(n);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	int indexOf(Object key) {
+		return binarySearch(this.keys,(Comparable<Object>) key);
+	}
+
+	@Override
+	int newIndexOf(Object key) {		
+		Object[] tamponKeys = new Object[size + 1];
+		System.arraycopy(tamponKeys, 0, this.keys, 0, size);
+		tamponKeys[size] = key;
+		Arrays.sort(tamponKeys);
+		return Arrays.binarySearch(tamponKeys,(Comparable<Object>) key);
+	}
+
+	int binarySearch(Object a[], int l, int h, Object x)
+	{
+		if (h >= l) {
+			int mid = l + (h - l) / 2;
+			Comparable aMidComparable = (Comparable<Object>)a[mid], xComparable = (Comparable<Object>)x;
+			// If the element is present at the middle itself
+			if (aMidComparable.compareTo(xComparable))
+				return mid;
+			// If element is smaller than mid, then it can only be present in left subarray
+			if  (((Comparable)a[mid]).compareTo((Comparable) x))
+				return binarySearch(a, l, mid - 1, x);
+			// Else the element can only be present in right subarray
+			return binarySearch(a, mid + 1, h, x);
+		}
+		// We reach here when element is not present in array
+		return -1;
+	}
+}
