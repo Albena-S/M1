@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title> texture test with min first </title>
+<style>
+body {
+	background-color: darkgrey;
+	margin: 0px;
+	padding: 0px;
+}
+
+#webglcanvas {
+	width: 80%;
+	height: 80%;
+}
+.texture{
+	display:none;
+}
+</style>
+ 
+</head>
+
+<body>
+<img class="texture" src="img/texture_p.png"></img>
+<canvas id="webglcanvas"></canvas>
+
+</body>
+<script src = "utils/webgl-utils.js"></script>
+<script src = "shaderSourceCode.js"></script>
+<script src="utils/trackball-rotator.js"></script>
+<script src="utils/gl-matrix-min.js"></script>
+<script>
+
+let rotator;  // A TrackballRotator object that lets the user rotate the view by mouse.
+let gl;   // The webgl context.
+let canvas;
+
+let u_projection;          // Locations of uniforms in the main shader program
+let u_modelview;
+let u_texture;
+let u_normalMatrix;
+
+const projection = mat4.create();        // projection matrix (for main shader program)
+const normalMatrix = mat3.create();      // normal transform matrix
+const textureTransform = mat3.create();  // texture transform matrix
+let modelview;                         // will come from rotator
+
+function storeBinaryCoords(gl, program, coordsDataArray, shaderCoordVariableName){
+	let bb = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, bb);	
+	let texCoords = new Float32Array(coordsDataArray);
+	// put coords in binary memory (en passant par gl.ARRAY_BUFFER pour typer les données et
+	// préciser l'option gl.STATIC_DRAW -> inputs won't change over time)
+	gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+	// lien entre input du vertex shader et variable js
+	let pos = gl.getAttribLocation(program, shaderCoordVariableName);
+
+	// transfert des données du buffer db (ARRAY_BUFFER) vers le vertex shader
+	// 2: nb de coordonnées lue à chaque pas, les coord manquantes attendues par le shader en input
+	// sont complétées par rapport aux coordonnes par défaut pour vec4 : (0 0 0 1)
+	// gl.FLOAT : type des données lues dans le buffer, 
+	// false/true: sans normaliser/en normalisant les données lues dans le buffer,
+	// 0: stride ~ type/taille du pas. 0 = move forward size * sizeof(type)
+	// 0: offset de démarrage. 0 = start at 0 (beginning of buffer)
+	let nco = 2;
+	gl.vertexAttribPointer(pos, nco, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(pos);
+	return coordsDataArray.length/nco;
+};
+
+// cette fonction permet de faire l'inversion quand c'est nécessaire
+// transforme, par exemple, 00 1O O1 en 01 11 00
+function getTextureCoords(coords, reverse){
+	let l = coords.length;
+	let newCoords = new Array(l);
+	let y = 0;
+	for (let i = 0; i < l; i++){
+		newCoords[i] = ((i%2 && reverse) == 1) ? 1 - coords[i] : coords[i];
+	}
+	return newCoords;
+}
+
+// version math naïve ?
+// x,y est le coin inférieur gauche
+// le repere supposé est le repère orthonormé direct (trigo)
+// les arêtes du rectangle sont les arêtes définie des triangles
+// les faces sont données en sens direct (sens trigo, sens antihoraire, senestre) 
+function getRect(x, y, width, height){
+	// pour afficher un rectangle on construit deux triangles : 
+	// (one two three) et (three four one)
+	// 
+	// four --- three 
+	//   |        |
+	// one  ---  two
+
+	let one = {x: x, y: y}, two = {x : x + width, y : y},
+	three = {x : x+width, y : y+height}, four = {x : x, y : y+height};
+	return([
+		one.x, one.y,
+		two.x, two.y,
+		three.x, three.y,
+		three.x, three.y,
+		four.x, four.y,
+		one.x, one.y,
+	])
+}
+function draw() {
+	//1) les coordonnées de texture et les coordonnées des sommets
+// attention, l'ordre détermine les paires respectives
+
+//counter clockwise dans le repère trigo
+	let textureCoords = getTextureCoords([
+		0,0, 
+		1,0,
+		1,1,
+		1,1,
+		0,1,
+		0,0,
+	], true);
+
+	let vertexCoords = getRect(-.5, -.5, 1, 1);
+
+//2) mémoriser les coordonnées (des textures et des sommets dans un buffer binaire partagé avec les shaders en utilisant la fonction magique de myUtils.js
+	let program = webglUtils.createProgramFromSources(gl, [vsc,fsc]); 
+	let num_steps = storeBinaryCoords(gl, program, vertexCoords, "vertices");
+	storeBinaryCoords(gl, program, textureCoords, "vst_coords"); //v-ertex s-hader t-exture
+	
+	//my addition
+	u_modelview = gl.getUniformLocation(program, "modelview");
+	u_projection = gl.getUniformLocation(program, "projection");
+	//u_normalMatrix = gl.getUniformLocation(program, "normalMatrix"); 
+
+	//pas trop sure
+	gl.uniformMatrix4fv(u_modelview, false, modelview );
+    //mat3.normalFromMat4(normalMatrix, modelview);
+
+    mat4.perspective(projection, Math.PI/10, canvas.width/canvas.height, 1, 10);
+    gl.uniformMatrix4fv(u_projection, false, projection);
+
+    modelview = rotator.getViewMatrix();
+    gl.uniformMatrix4fv(u_modelview, false, modelview );
+//3) textures : creation, pré-remplissage, remplissage par chargement asynchrone d'une image
+	let shaderTexture = gl.getUniformLocation(program, "u_texture");
+
+	//creation
+	let texture = gl.createTexture();
+
+	// tells which texture to use
+	gl.activeTexture(gl.TEXTURE0+0);
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+
+	// parameters for no mips, no filtering
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+	//pré-remplissage avec la ligne bleue ...
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,255,255]));
+	
+	let image = document.getElementsByClassName("texture")[0];
+	let w = image.width, h = image.height;
+	console.log('image size = '+image.width+", "+image.height);
+/*	gl.texImage2D(
+		gl.TEXTURE_2D, 		//cible 
+		0, 					//niveau
+		gl.RGBA,    		//format interne
+		w,h, 		//dimensions
+		0, 					//bordure
+		gl.RGBA, 			//format de l'image source
+		gl.UNSIGNED_BYTE,	//type
+		image);				//image*/
+
+
+
+//other useful inits
+	webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+	console.log("could you read the values? "+ gl.canvas.width +", "+ gl.canvas.height);
+	gl.viewport(0,0, gl.canvas.width, gl.canvas.height);
+	gl.clearColor(0,.3,0.5,1); //blue sky
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.useProgram(program);
+	gl.drawArrays(gl.TRIANGLES, 0, num_steps);
+//////// draw de render
+    
+    
+}
+
+//--------------------------------- animation framework ------------------------------
+
+
+function frame() {
+        draw();
+        requestAnimationFrame(frame);
+    
+}
+
+function doAnimationCheckbox() {
+
+    requestAnimationFrame(frame);
+    
+}
+
+//-------------------------------------------------------------------------
+
+/**
+ * initialization function that will be called when the page has loaded
+ */
+function init() {
+    canvas = document.getElementById("webglcanvas");
+	if (canvas){
+		gl = canvas.getContext("webgl2");
+		if (gl){
+			console.log("gl supported");
+		}
+	}
+   
+
+    rotator = new TrackballRotator(canvas, draw, 5, [2,2,3]);
+
+    frame();
+
+}
+window.onload = init;
+
+</script>
+</html>

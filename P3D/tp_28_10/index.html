@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><meta charset="UTF-8">
+
+
+<title>Render to Texture</title>
+<style>
+    body {
+        background-color: pink;
+    }
+    canvas {
+        display: block;
+	margin:auto;
+    }
+    label, button {
+        margin-left: 30px;
+    }
+</style>
+
+
+
+<script>
+
+"use strict";
+
+let gl;   // The webgl context.
+let canvas;
+
+let prog; // The main shader program, for the 3D on-screen image
+let prog_texture;  // The shader program for the 2D image that is rendered to a texture
+
+let a_coords_loc;          // Locations of attributes in the main shader program
+let a_normal_loc; 
+let a_texCoords_loc; 
+
+let u_projection;          // Locations of uniforms in the main shader program
+let u_modelview;
+let u_texture;
+let u_normalMatrix;
+let u_textureScale;
+
+const projection = mat4.create();        // projection matrix (for main shader program)
+const normalMatrix = mat3.create();      // normal transform matrix
+const textureTransform = mat3.create();  // texture transform matrix
+let modelview;                         // will come from rotator
+
+let framebuffer;  // The framebuffer object that is used to draw to the texture
+let texture;      // The texture object where the 2D image is drawn
+
+let a_coords_loc_texture;  // Location of the a_coords attribute in prog_texture
+let buffer_texture;        // A buffer to hold the coordinates for a_coords_loc_texture
+let u_color_texture;       // Location of the color uniform in prog_texture.
+let u_translation_texture; // Location of the translation uniform in proh_texture
+
+const DISK_COUNT = 30;  // The scene in the texture shows moving disks.  This is the number of disks.
+const DISK_DIAMETER = 0.6;  // This is the size of the disks.
+let diskCenters;  // An array giving the positions of the disks, used as values of the u_translation uniform.
+let diskColors;  // An array giving the colors of the disks.
+let diskVelocities;  // For animating the disk positions.
+
+let rotator;  // A TrackballRotator object that lets the user rotate the view by mouse.
+
+const objects = [];  // array of objects, containing models created using createModel()
+                     // Contains:  Cube, Sphere, Cylinder, Cone, Torus, Teapot
+
+
+
+//2. Donner des coordonnées de texture aux sommets du modèle à texturer
+//3. Créer un ou plusieurs objets de texture pour stocker les textures
+//5. Activer une ou plusieurs unités de texture
+/* Draw the scene */
+function draw() {
+
+    /* Draw the 2D image of moving disks into a texture that has been
+       attached to a frambuffer as its color buffer. */
+//155-175 creer la texture et la mettre dans buffertexture pour la deuxieme prog juste en bas
+    gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
+    gl.useProgram(prog_texture);
+    
+    gl.clearColor(1,1,1,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    gl.disable(gl.DEPTH_TEST); // Essential to turn off depth test, since framebuffer doesn't even have a depth buffer.
+    gl.viewport(0,0,512,512);  // Need to set the viewport to match size of the texture. It is not set automatically
+    gl.enable(gl.BLEND);  // Use transparency while drawing 2D image.
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+    gl.lineWidth(2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer_texture);
+    gl.vertexAttribPointer(a_coords_loc_texture, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_coords_loc_texture);
+        // Note that we use enableVertexArray/disableVertexArray to make sure correct attributes are enable
+        // for each drawing.  An attribute ID is just an integer, and we don't know what they are, so
+        // I enable the ones I need while drawing, then disable them when done drawing.
+    drawDisks();
+    gl.disableVertexAttribArray(a_coords_loc_texture);
+    gl.disable(gl.BLEND);
+
+    /*  Now draw an object, using the texture that we just drew.  (texture object was created and bound in initGL())
+     */
+//179 -198ou+ 2eme prog    
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null); // The null means to use the default framebuffer (which draws onscreen)
+    gl.useProgram(prog);
+    gl.clearColor(0,0.3,0.5,1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.viewport(0,0,canvas.width,canvas.height);  // Reset the viewport to match the canvas.
+    gl.enableVertexAttribArray(a_coords_loc);
+    gl.enableVertexAttribArray(a_normal_loc);
+//a tex coords et definie la ligne 127 et inialise a 369
+    gl.enableVertexAttribArray(a_texCoords_loc);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    
+    let objectNum = Number(document.getElementById("object").value);
+    modelview = rotator.getViewMatrix();
+    objects[objectNum].render(); // sets up modelview and normal matrices 
+    gl.disableVertexAttribArray(a_coords_loc);
+    gl.disableVertexAttribArray(a_normal_loc);
+    gl.disableVertexAttribArray(a_texCoords_loc);
+    
+}
+
+
+
+/* Creates a program for use in the WebGL context gl, and returns the
+ * identifier for that program.  If an error occurs while compiling or
+ * linking the program, an exception of type String is thrown.  The error
+ * string contains the compilation or linking error.  If no error occurs,
+ * the program identifier is the return value of the function.
+ *    The second and third parameters are the id attributes for <script>
+ * elementst that contain the source code for the vertex and fragment
+ * shaders.
+ */
+function createProgram(gl, vertexShaderID, fragmentShaderID) {
+    function getTextContent( elementID ) {
+            // This nested function retrieves the text content of an
+            // element on the web page.  It is used here to get the shader
+            // source code from the script elements that contain it.
+        let element = document.getElementById(elementID);
+        let node = element.firstChild;
+        let str = "";
+        while (node) {
+            if (node.nodeType == 3) // this is a text node
+                str += node.textContent;
+            node = node.nextSibling;
+        }
+        return str;
+    }
+    let vertexShaderSource, fragmentShaderSource;
+    try {
+        vertexShaderSource = getTextContent( vertexShaderID );
+        fragmentShaderSource = getTextContent( fragmentShaderID );
+    }
+    catch (e) {
+        throw "Error: Could not get shader source code from script elements.";
+    }
+    let vsh = gl.createShader( gl.VERTEX_SHADER );
+    gl.shaderSource(vsh,vertexShaderSource);
+    gl.compileShader(vsh);
+    if ( ! gl.getShaderParameter(vsh, gl.COMPILE_STATUS) ) {
+        throw "Error in vertex shader:  " + gl.getShaderInfoLog(vsh);
+     }
+    let fsh = gl.createShader( gl.FRAGMENT_SHADER );
+    gl.shaderSource(fsh, fragmentShaderSource);
+    gl.compileShader(fsh);
+    if ( ! gl.getShaderParameter(fsh, gl.COMPILE_STATUS) ) {
+       throw "Error in fragment shader:  " + gl.getShaderInfoLog(fsh);
+    }
+    let prog = gl.createProgram();
+    gl.attachShader(prog,vsh);
+    gl.attachShader(prog, fsh);
+    gl.linkProgram(prog);
+    if ( ! gl.getProgramParameter( prog, gl.LINK_STATUS) ) {
+       throw "Link error in program:  " + gl.getProgramInfoLog(prog);
+    }
+    return prog;
+}
+
+
+
+/* Initialize the WebGL context.  Called from init() */
+function initGL() {
+    
+    // initialize data for the 2D image that is drawn to the texture
+
+    prog_texture = createProgram(gl, "vshader-texture", "fshader-texture");
+    gl.useProgram(prog_texture);
+    a_coords_loc_texture =  gl.getAttribLocation(prog_texture, "a_coords");
+    u_translation_texture = gl.getUniformLocation(prog_texture, "translation");
+    u_color_texture = gl.getUniformLocation(prog_texture, "color");
+    let diskCoords = new Float32Array(2*64);
+    for (let i = 0; i < 64; i++) {
+        let angle = i/64 * 2*Math.PI;
+        diskCoords[2*i] = DISK_DIAMETER/2 * Math.cos(angle);
+        diskCoords[2*i+1] = DISK_DIAMETER/2 * Math.sin(angle);
+    }
+    buffer_texture = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer_texture);
+    gl.bufferData(gl.ARRAY_BUFFER, diskCoords, gl.STATIC_DRAW);
+    
+    // initialize data for the main, on-screen scene
+
+    prog = createProgram(gl,"vshader","fshader");
+    gl.useProgram(prog); 
+    
+    a_coords_loc =  gl.getAttribLocation(prog, "a_coords");
+    a_normal_loc =  gl.getAttribLocation(prog, "a_normal");
+    a_texCoords_loc =  gl.getAttribLocation(prog, "a_texCoords");
+    u_modelview = gl.getUniformLocation(prog, "modelview");
+    u_projection = gl.getUniformLocation(prog, "projection");
+    u_normalMatrix = gl.getUniformLocation(prog, "normalMatrix"); 
+    u_texture = gl.getUniformLocation(prog, "texture");
+    u_textureScale = gl.getUniformLocation(prog, "textureScale");
+    
+    gl.uniform1i(u_texture, 0);  // this program uses only texture unit 0
+    gl.uniform1f(u_textureScale,1);
+    
+    mat4.perspective(projection, Math.PI/10, canvas.width/canvas.height, 1, 10);
+    gl.uniformMatrix4fv(u_projection, false, projection);
+    
+    objects[0] = createModel( cube() );
+    objects[1] = createModel( uvSphere(0.7,64,32) );
+    objects[2] = createModel( uvCylinder() );
+    objects[3] = createModel( uvCone() );
+    objects[4] = createModel( uvTorus(0.65,0.2,64,24) );
+    for (let i = 0; i < teapotModel.vertexPositions.length; i++) {
+        teapotModel.vertexPositions[i] *= 0.05; // scale teapot model to a size that matches other objects
+    }
+    objects[5] = createModel( teapotModel );
+    
+    // initialize the framebuffer and texture
+   
+    texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+         //With null as the last parameter, the previous method allocates memory for the texture and fills it with zeros.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+         // The previous line sets the minification filter to gl.LINEAR so we won't neet mipmaps
+         
+    framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);  // select the framebuffer, so we can attach the texture to it
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+         // The previous line attaches the texture to the framebuffer for use as the color buffer.
+         
+    // Check form WebGL errors (since I'm not sure all platforms will be able to create the framebuffer)
+    
+    if (gl.getError() != gl.NO_ERROR) {
+        throw "Some WebGL error occurred while trying to create framebuffer.";
+    }
+ 
+}
+
+
+
+
+/**
+ * initialization function that will be called when the page has loaded
+ */
+function init() {
+    try {
+        canvas = document.getElementById("webglcanvas");
+        gl = canvas.getContext("webgl") || 
+                         canvas.getContext("experimental-webgl");
+        if ( ! gl ) {
+            throw "Browser does not support WebGL";
+        }
+    }
+    catch (e) {
+        document.getElementById("canvas-holder").innerHTML =
+            "<p>Sorry, could not get a WebGL graphics context.</p>";
+        return;
+    }
+    try {
+        initGL();  // initialize the WebGL graphics context
+    }
+    catch (e) {
+        document.getElementById("canvas-holder").innerHTML =
+            "<p>Sorry, could not initialize the WebGL graphics context:" + e + "</p>";
+        return;
+    }
+
+
+window.onload = init;
+
+</script>
+
+
+
+
+
+</head>
+
+<body>
+
+<h2>Exo 1</h2>
+
+<div id="canvas-holder">
+   <canvas id="webglcanvas" style="background-color:white" width="600" height="600"></canvas>
+</div>
+
+
+
+
+
+</body></html>
