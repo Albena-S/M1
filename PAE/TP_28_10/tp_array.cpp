@@ -5,10 +5,17 @@
 #include <cmath>
 
 EvalPerf PE;
-
-void print_submatrix(const double* M, size_t m, size_t n, size_t s);
-
-
+void print_submatrix(const double* M,
+                    size_t m, 
+                    size_t n, 
+                    size_t s){
+    for (size_t i = 0; i < m ; i++){
+        for (size_t j = 0; j < n ; j++){
+            std::cout << M[i*s+j]<< " ";
+        }
+        std::cout << std::endl;
+    }
+}
 void MatrixTrans_naif(const double* A,
                       double* B,
                       int n){
@@ -90,14 +97,7 @@ void MatrixTrans_obliv_v2(size_t m,
     }
 }
 
-void print_submatrix(const double* M, size_t m, size_t n, size_t s){
-    for (size_t i = 0; i < m ; i++){
-        for (size_t j = 0; j < n ; j++){
-            std::cout << M[i*s+j]<< " ";
-        }
-        std::cout << std::endl;
-    }
-}
+
 void print_PE(std::string method_name, int repetitions){
   std::cout<<  method_name << std::endl;
   std::cout<< "nbr seconds: " << PE.second() << std::endl;
@@ -121,24 +121,48 @@ int main (int argc, char** argv){
   double* A = new double[n*n];
   double* B = new double[n*n];
 
- //genere les matrices
-  
+
   for (int i = 0; i< n; i++)
     for (int j = 0; j< n; j++)
       A[i + j*n] = j;
 
-  
+  /* 
+  exo 20.4
+  //genere les matrices
+  double T0[3620] = {0};
+  double T1[3640] = {1};
+  double T2[3660] = {2};
+  double T3[3660];
+  PE.start();
+  for (int i = 0; i< repetitions; i++)
+      MatrixTrans_naif(T0,T3,sqrt(3620));
+  PE.stop();
+
+  print_PE("MatrixTrans_naif T0 ", repetitions);
 
   PE.start();
+  for (int i = 0; i< repetitions; i++)
+      MatrixTrans_naif(T1,T3,sqrt(3640));
+  PE.stop();
+
+  print_PE("MatrixTrans_naif T1 ", repetitions);
+  PE.start();
+  for (int i = 0; i< repetitions; i++)
+      MatrixTrans_naif(T2,T3,sqrt(3660));
+  PE.stop();
+
+  print_PE("MatrixTrans_naif T2", repetitions); */
+
+   PE.start();
   for (int i = 0; i< repetitions; i++)
       MatrixTrans_naif(A,B,n);
   PE.stop();
 
-  print_PE("MatrixTrans_naif ", repetitions);
+  print_PE("MatrixTrans_naif ", repetitions); 
 
   PE.start();
   for (int i = 0; i< repetitions; i++)
-      MatrixTrans_bloc<8>(A,B,n);
+      MatrixTrans_bloc<32>(A,B,n);
   PE.stop();
 
   print_PE("MatrixTrans_bloc ", repetitions);
@@ -149,8 +173,8 @@ int main (int argc, char** argv){
       MatrixTrans_obliv_v1(n, n, A, n, B, n);
   PE.stop();
 
-  print_PE("MatrixTrans_obliv_v1 ", repetitions);
-  
+  print_PE("MatrixTrans_obliv ", repetitions);
+  /*
   MatrixTrans_obliv_v2<9>(n, n, A, n, B, n);
   PE.start();
   for (int i = 0; i< repetitions; i++)
@@ -158,7 +182,7 @@ int main (int argc, char** argv){
   PE.stop();
 
   print_PE("MatrixTrans_obliv_v2 ", repetitions);
-
+ */
   return 0;
   }
 

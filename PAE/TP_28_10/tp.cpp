@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <cmath>
 
 
 void MatrixTrans_naif(std::vector<double> &A,
@@ -36,9 +37,12 @@ void MatrixTrans_bloc(std::vector<double> &A,
 
 int main (int argc, char** argv){
   assert(argc==2);
-  long long int repetitions = atoi(argv[1])*100000;
+  //long long int repetitions = atoi(argv[1])*100000;
+  long long int repetitions = 1000;
   //varier de 128 a 1024 en 2**k
-  int n=16;
+  int k = atoi(argv[1]);
+  int n = pow(2, k);
+  std::cout << "k "<< k <<std::endl;
   //int blocs = 8;
   std::vector<double> B,
   A /*= {1, 1,1 ,1,
@@ -46,11 +50,13 @@ int main (int argc, char** argv){
       3,3,3,3,
       4,4,4,4}*/;
  A.resize(n*n);
+ //genere les matrices
+  
   for (int i = 0; i< n; i++)
     for (int j = 0; j< n; j++)
       A[i + j*n] = j;
 
-
+  
   EvalPerf PE;
   PE.start();
   
