@@ -55,11 +55,12 @@ public:
         triangles[0][1] = 1;
         triangles[0][2] = 2;
         triangles[1][0] = 0;
-        triangles[1][1] = 2;
+        triangles[1][1] = 2; 
         triangles[1][2] = 3;
 
 
     }
+
 
     RaySquareIntersection intersect(const Ray &ray) const {
         RaySquareIntersection intersection;
@@ -72,11 +73,35 @@ public:
         ▪ t non-défini ⟹ rayon confondu avec le plan
         ▪ t < 0 ⟹ intersection derrière la caméra
         ▪ t > 0 ⟹ intersection devant la caméra */
-
-        Vec3 D = m_right_vector, 
-            d = ray.direction(),
+	
+	Vec3 r = vertices[1].position - vertices[0].position;
+	Vec3 u = vertices[3].position - vertices[0].position;
+        Vec3 d = ray.direction(),
             o = ray.origin(),
-            a = vertices[0].position;
+            a = vertices[0].position,
+            n = Vec3::cross(r,u);
+        float D = Vec3::dot(a,n);
+
+  
+        float t = (D - Vec3::dot(o,n))/ Vec3::dot(d,n);
+        Vec3 p = o + t * d; 
+        if (t > 0){
+            Vec3 v0,v1,v2,v3;
+            float v0n;
+            v0 = Vec3::cross(vertices[1].position - vertices[0].position, p - vertices[0].position);
+            v1 = Vec3::cross(vertices[2].position - vertices[1].position, p - vertices[1].position);
+            v2 = Vec3::cross(vertices[3].position - vertices[2].position, p - vertices[2].position);
+            v3 = Vec3::cross(vertices[0].position - vertices[3].position, p - vertices[3].position);
+            bool positif = Vec3::dot(v0, n) > 0;
+            if ((Vec3::dot(v1, n) > 0) == positif)
+                if ((Vec3::dot(v2, n) > 0) == positif)
+                    if ((Vec3::dot(v3, n) > 0) == positif){
+
+                            intersection.t = t;
+                            intersection.intersectionExists = true;
+                        }
+        }
+        
         return intersection;
     }
 };

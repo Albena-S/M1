@@ -81,61 +81,44 @@ public:
 
     RaySceneIntersection computeIntersection(Ray const & ray) {
         RaySceneIntersection result;
-        //RayTriangleIntersection curr_mesh,tmp_mesh =  new ;//mesh_size <0 ? meshes[0].intersect(ray) : null;
-        RaySphereIntersection curr_sphere,tmp_sphere;// = new RaySphereIntersection();//sphere_size <0 ? spheres[0].intersect(ray) : null;
-        RaySquareIntersection curr_square,tmp_square;// = new RaySquareIntersection(); //square_size <0 ? squares[0].intersect(ray) : null;
-        float t_min = FLT_MAX; 
-        int objectIndex = 0; //val par defaut
         //TODO calculer les intersections avec les objets de la scene et garder la plus proche
-        /* for (unsigned int mesh = 0; mesh < meshes.size(); mesh++){
-            curr_mesh = meshes[mesh].intersect(ray);
-            if (curr_mesh.t < t_min.t)
-                tmp_mesh = curr_mesh;
-                objectIndex = mesh;
-                t_min = curr_mesh.t;
-        } */
-        for (unsigned int sphere = 0; sphere < spheres.size(); sphere++){
-            curr_sphere = spheres[sphere].intersect(ray);
-            if (curr_sphere.t < t_min){
-                tmp_sphere = curr_sphere;
-                objectIndex = sphere;
-                t_min = curr_sphere.t;
+        //parcourir tous les objets de la scene, garder celui dont le t est le plus petit
+        
+        int sphSize = spheres.size();
+        int sqSize = squares.size();
+
+        for(int i = 0 ; i < sphSize; i ++){
+            RaySphereIntersection sInter = spheres[i].intersect(ray);    //intersection avec single sphere
+
+            if(sInter.intersectionExists){
+                if(sInter.t < result.t) {
+                    result.t = sInter.t;
+                    result.objectIndex = i;
+                    result.typeOfIntersectedObject = 1;      // intersection avec single sphere
+                    result.intersectionExists = true;
+
+                }
+
             }
         }
-        for (unsigned int square = 0; square < squares.size(); square++){   
-            curr_square = squares[square].intersect(ray);
-            if (curr_square.t < t_min){
-                tmp_square = curr_square; 
-                objectIndex = square;
-                t_min =  curr_square.t;  
-            }  
+        
+        for(int i = 0 ; i < sqSize; i ++){
+            // std::cout<<"dans le carré "<<i<<std::endl;
+            RaySquareIntersection sqInter = squares[i].intersect(ray);  //intersection avec single square  
+                   
+
+            if(sqInter.intersectionExists){
+                // std::cout<<"inter square"<<std::endl;
+                if(sqInter.t < result.t){
+                    result.t = sqInter.t;
+                    result.objectIndex = i;
+                    result.typeOfIntersectedObject = 2;   //intersection avec single square
+                    result.intersectionExists = true;
+                }
+                         
+            }
         }
-        //t_min represente l'intersection le plus proche
-        //idee - je compare les intersections une apres l'autre donc
-        //si tmp_square est toujours null cad que les intersections sont plus loin
-        //idem pour tmp_sphere
-        //si tmp_mesh est aussi null cad qu'il y a pas d'intersections (aussi si t_min == FLT_MAX)
-        
-        
-        if (! tmp_square.intersectionExists ){
-            result.intersectionExists = true;
-            result.objectIndex = objectIndex;
-            result.typeOfIntersectedObject = 2;
-            result.raySquareIntersection = squares[objectIndex].intersect(ray);
-            result.t = t_min;
-        }else if (! tmp_sphere.intersectionExists){
-            result.intersectionExists = true;
-            result.objectIndex = objectIndex;
-            result.typeOfIntersectedObject = 1;
-            result.raySphereIntersection = spheres[objectIndex].intersect(ray);
-            result.t = t_min;
-        }/* else  if (tmp_mesh != NULL){
-            result.intersectionExists = true;
-            result.objectIndex = objectIndex;
-            result.typeOfIntersectedObject = 0;
-            result.rayMeshIntersection = meshes[objectIndex].intersect(ray);
-            result.t = t_min;
-        } *///sinon result a deja ses valeurs par default
+
 
         return result;
     }
@@ -197,11 +180,22 @@ public:
         {
             spheres.resize( spheres.size() + 1 );
             Sphere & s = spheres[spheres.size() - 1];
+            s.m_center = Vec3(1. , 0. , 0.);
+            s.m_radius = 1.f;
+            s.build_arrays();
+            s.material.type = Material_Mirror;
+            s.material.diffuse_material = Vec3( 1.,0.,0. );
+            s.material.specular_material = Vec3( 0.2,0.2,0.2 );
+            s.material.shininess = 20;
+        }
+        {
+            spheres.resize( spheres.size() + 1 );
+            Sphere & s = spheres[spheres.size() - 1];
             s.m_center = Vec3(0. , 0. , 0.);
             s.m_radius = 1.f;
             s.build_arrays();
             s.material.type = Material_Mirror;
-            s.material.diffuse_material = Vec3( 1.,1.,1 );
+            s.material.diffuse_material = Vec3( 0.,1.,0. );
             s.material.specular_material = Vec3( 0.2,0.2,0.2 );
             s.material.shininess = 20;
         }
@@ -229,7 +223,7 @@ public:
             Square & s = squares[squares.size() - 1];
             s.setQuad(Vec3(-1., -1., 0.), Vec3(1., 0, 0.), Vec3(0., 1, 0.), 2., 2.);
             s.build_arrays();
-            s.material.diffuse_material = Vec3( 0.8,0.8,0.8 );
+            s.material.diffuse_material = Vec3( 1.,0.,0. );//Vec3( 0.8,0.8,0.8 );
             s.material.specular_material = Vec3( 0.8,0.8,0.8 );
             s.material.shininess = 20;
         }
@@ -317,7 +311,7 @@ public:
             s.material.shininess = 16;
         }
 
-        { //Front Wall
+        /*{ //Front Wall
             squares.resize( squares.size() + 1 );
             Square & s = squares[squares.size() - 1];
             s.setQuad(Vec3(-1., -1., 0.), Vec3(1., 0, 0.), Vec3(0., 1, 0.), 2., 2.);
@@ -328,10 +322,10 @@ public:
             s.material.diffuse_material = Vec3( 1.0,1.0,1.0 );
             s.material.specular_material = Vec3( 1.0,1.0,1.0 );
             s.material.shininess = 16;
-        }
+        }*/
 
 
-        { //GLASS Sphere
+       /* { //GLASS Sphere
 
             spheres.resize( spheres.size() + 1 );
             Sphere & s = spheres[spheres.size() - 1];
@@ -359,7 +353,7 @@ public:
             s.material.shininess = 16;
             s.material.transparency = 0.;
             s.material.index_medium = 0.;
-        }
+        }*/
 
     }
 

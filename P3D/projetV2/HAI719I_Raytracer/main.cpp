@@ -21,6 +21,8 @@
 #include <string>
 #include <cstdio>
 #include <cstdlib>
+#include <stdlib.h>
+#include <cmath>        
 
 #include <algorithm>
 #include "src/Vec3.h"
