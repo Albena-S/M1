@@ -109,7 +109,9 @@ public:
         }
         intersection.t = t;
         intersection.intersectionExists = true;
-        intersection.intersection = m_center + t*d;
+        intersection.intersection = ray.origin() + t*d;
+        intersection.normal = intersection.intersection - m_center;
+        intersection.normal.normalize();
         //pour avoir le point de rayon, apres avoir calcule le t, remplace le dans l'eq de rayon r(t)=... je pense
 
 
