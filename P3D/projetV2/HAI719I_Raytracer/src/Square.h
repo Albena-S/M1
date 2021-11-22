@@ -89,6 +89,7 @@ public:
              o = ray.origin(),
              a = vertices[0].position,
              n = Vec3::cross(r, u);
+        n.normalize();
         float D = Vec3::dot(a, n);
 
         float t = (D - Vec3::dot(o, n)) / Vec3::dot(d, n);
@@ -96,7 +97,6 @@ public:
         if (t > 0)
         {
             Vec3 v0, v1, v2, v3;
-            float v0n;
             v0 = Vec3::cross(vertices[1].position - vertices[0].position, p - vertices[0].position);
             v1 = Vec3::cross(vertices[2].position - vertices[1].position, p - vertices[1].position);
             v2 = Vec3::cross(vertices[3].position - vertices[2].position, p - vertices[2].position);
@@ -109,8 +109,7 @@ public:
 
                         intersection.t = t;
                         intersection.intersectionExists = true;
-                        intersection.intersection = p; //?
-                        n.normalize();
+                        intersection.intersection = p; 
                         intersection.normal = n;
                     }
         }

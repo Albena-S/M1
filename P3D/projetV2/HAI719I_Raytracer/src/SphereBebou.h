@@ -6,13 +6,13 @@
 #include <cmath>
 
 struct RaySphereIntersection{
-    bool intersectionExists;
+    bool intersectionExists = false;
     float t;
     float theta,phi;
     Vec3 intersection;
     Vec3 secondintersection;
     Vec3 normal;
-    RaySphereIntersection() : intersectionExists(false) , t(FLT_MAX) {}
+    RaySphereIntersection() : intersectionExists(false), t(FLT_MAX) {}
 };
 
 static
@@ -85,32 +85,41 @@ public:
 
     RaySphereIntersection intersect(const Ray &ray) const {
         RaySphereIntersection intersection;
+
+        Vec3 d = ray.direction();
+        Vec3 o = ray.origin();
+        Vec3 ce = this->m_center;
+        float r = this->m_radius;
         //TODO calcul l'intersection rayon sphere
 
-        Vec3 d = ray.direction(),o_c = ray.origin() - m_center;
-        float a,b,c,t, discr,
-         r = this->m_radius;
-        a = Vec3::dot(d,d);
-        b = 2. * Vec3::dot(d, (o_c));
-        c = o_c.squareNorm() - pow(r,2);
-        discr = b*b - 4*a*c;
+        // t2 d.d+ 2t d.(o-c)+ ||o-c||² –r² =0
+        float a = Vec3::dot(d, d);
+        float b = 2 * Vec3::dot(d, (o - ce)); 
+        float c = (o-ce).squareNorm() - pow(r,2);
 
-        //discriminant 
-        //2 racines - prends le plus petit t
-        if (discr > 0){
-            float t1 = (-b + sqrt(discr)) / 2*a;
-            float t2 = (-b - sqrt(discr)) / 2*a;
-            float t_min, t_max;
-            t_min = t1 < t2 ? t1 : t2; 
-            t_max = t1 > t2 ? t1 : t2; 
+        float delta = pow(b,2) - 4 * a * c;
+        if(delta < 0) { // Discriminant négatif
+            intersection.intersectionExists = false;
+        } else { // Discriminant positif 
+            float root1 = (-b + sqrt(delta))/2*a;
+            float root2 = (-b - sqrt(delta))/2*a;
+            float t_min = root1 < root2 ? root1 : root2;
+            float t_max = root1 < root2 ? root2 : root1;
 
-            intersection.t = t_min;
             intersection.intersectionExists = true;
-            intersection.intersection = ray.origin() + t_min*d;
-            intersection.secondintersection = ray.origin() + t_max*d;
-            intersection.normal = intersection.intersection - m_center;
+            intersection.t = t_min;
+
+            intersection.intersection = o + t_min * d;
+            intersection.secondintersection = o + t_max * d;
+
+            Vec3 intersection_coords = EuclideanCoordinatesToSpherical(intersection.intersection);
+            intersection.theta = intersection_coords[0];
+            intersection.phi = intersection_coords[1];
+
+            intersection.normal = intersection.intersection - ce;
             intersection.normal.normalize();
         }
+
         return intersection;
     }
 };

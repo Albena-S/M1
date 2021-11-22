@@ -125,30 +125,36 @@ public:
         return result;
     }
 
+    float intersectSmth(Ray const & ray) {
+
+        //Meshes
+        for(unsigned int i = 0; i < meshes.size(); i++) {
+            RayTriangleIntersection rayMesh = meshes[i].intersect(ray);
+            if(rayMesh.intersectionExists) return rayMesh.t;
+        }
+
+        // Spheres
+        for(unsigned int i = 0; i < spheres.size(); i++) {
+            RaySphereIntersection raySphere = spheres[i].intersect(ray);
+            if(raySphere.intersectionExists) return raySphere.t;
+        }
+        // Squares
+        for(unsigned int i = 0; i < squares.size(); i++) {
+            RaySquareIntersection raySquare = squares[i].intersect(ray);
+            if(raySquare.intersectionExists) return raySquare.t;
+        }
+        return 0;
+    }
+
     Vec3 rayTraceRecursive(Ray ray, int NRemainingBounces)
     {
 
         //TODO RaySceneIntersection raySceneIntersection = computeIntersection(ray);
         RaySceneIntersection raySceneIntersection = computeIntersection(ray);
+        Ray shadowRay;
         Vec3 color;
         //color par default - fon d'ecran - ex vec3(0.,0,.0.)
         color = Vec3(0., 0., 0.);
-
-        /*         𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ cos(theta)
-        • 𝐼𝑑 : intensité de la lumière diffuse réfléchie
-        • 𝐼𝑠𝑑 : intensité de la lumière diffuse
-        • 𝐾𝑑 ∈ [0,1] : coeff. de réflexion diffuse du matériau
-        theta -  angle entre la source de lumière et la normale
-        On peut également écrire :
-        𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁) */
-        //L est le vecteur du point d'intersetion vers la lumiere
-        //ligth pos - intersection pos; normalise apres https://www.youtube.com/watch?v=8717ZZ-kIoo
-        /* Vec3 L = ray.origin - raySceneIntersection.intersection;
-        L.normalize();
-        // N  - la normale
-        Vec3 N = raySceneIntersection.normale;
-        Vec3 LN = Vec3::dot(L,N) ;//=cos theta
-        Vec3 Id; */
         if (raySceneIntersection.intersectionExists)
         {
             switch (raySceneIntersection.typeOfIntersectedObject)
@@ -159,63 +165,85 @@ public:
             case 1:
             {
                 unsigned int index = raySceneIntersection.objectIndex;
-                float Id, Is,Ia, LN, RV,
-                        shininess = spheres[index].material.shininess;
-                Vec3 normal = raySceneIntersection.raySquareIntersection.normal,
-                    intersection = raySceneIntersection.raySquareIntersection.intersection;
+                float Id, Is, Ia, LN, RV,
+                    shininess = spheres[index].material.shininess;
+                Vec3 normal = raySceneIntersection.raySphereIntersection.normal,
+                     intersection = raySceneIntersection.raySphereIntersection.intersection;
+
                 for (unsigned int k = 0; k < 3; k++)
                 {
                     for (unsigned int i = 0; i < lights.size(); i++)
                     {
-                        //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
-                        Ia = lights[i].material[k] * spheres[index].material.ambient_material[k];
-                        //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
+                        
                         Vec3 L = lights[i].pos - intersection;
                         L.normalize();
-                        LN = Vec3::dot(L, normal);
-                        Id = lights[i].material[k] * spheres[index].material.diffuse_material[k] * LN;
-                        //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
-                        //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
-                        Vec3 R = 2 * LN * normal - L;
-                        R.normalize();
-                        Vec3 V = ray.origin() - intersection;
-                        V.normalize();
-                        RV = Vec3::dot(R, V);
-                        Is = lights[i].material[k] * spheres[index].material.specular_material[k] * pow(RV, shininess);
+                        shadowRay = Ray(intersection, L);
+                        float ombre = intersectSmth(shadowRay);
+                        if (!((ombre < 1 && ombre > 0.0001))){
+                            //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
+                            Ia = lights[i].material[k] * spheres[index].material.ambient_material[k];
+                            //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
+                            LN = Vec3::dot(L, normal);
+                            Id = lights[i].material[k] * spheres[index].material.diffuse_material[k] * LN;
+                            //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
+                            //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
+                            Vec3 R = 2 * LN * normal - L;
+                            R.normalize();
+                            Vec3 V = ray.origin() - intersection;
+                            V.normalize();
+                            RV = Vec3::dot(R, V);
+                            Is = lights[i].material[k] * spheres[index].material.specular_material[k] * pow(RV, shininess);
 
-                        color[k] += Ia + Is + Id;
+                            color[k] += Ia + Is + Id;
+                            if (color[k] < 0.000001)
+                            {
+                                color[k] = 0;
+                            }
+                        }
                     }
                 }
+                
             }
-                break;
+            break;
             case 2:
-            {   
+            {
                 unsigned int index = raySceneIntersection.objectIndex;
-                float Id, Is,Ia, LN, RV,
-                        shininess = squares[index].material.shininess;
+                float Id, Is, Ia, LN, RV,
+                    shininess = squares[index].material.shininess;
                 Vec3 normal = raySceneIntersection.raySquareIntersection.normal,
-                    intersection = raySceneIntersection.raySquareIntersection.intersection;
+                     intersection = raySceneIntersection.raySquareIntersection.intersection;
                 for (unsigned int k = 0; k < 3; k++)
                 {
                     for (unsigned int i = 0; i < lights.size(); i++)
                     {
-                        //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
-                        Ia = lights[i].material[k] * squares[index].material.ambient_material[k];
-                        //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
+                        
                         Vec3 L = lights[i].pos - intersection;
                         L.normalize();
-                        LN = Vec3::dot(L, normal);
-                        Id = lights[i].material[k] * squares[index].material.diffuse_material[k] * LN;
-                        //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
-                        //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
-                        Vec3 R = 2 * LN * normal - L;
-                        R.normalize();
-                        Vec3 V = ray.origin() - intersection;
-                        V.normalize();
-                        RV = Vec3::dot(R, V);
-                        Is = lights[i].material[k] * squares[index].material.specular_material[k] * pow(RV, shininess);
+                        shadowRay = Ray(intersection, L);
+                        float ombre = intersectSmth(shadowRay);
+                        if (!((ombre < 1 && ombre > 0.0001))){
+                            //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
+                            Ia = lights[i].material[k] * squares[index].material.ambient_material[k];
+                            //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
+                            
+                            LN = Vec3::dot(L, normal);
+                            Id = lights[i].material[k] * squares[index].material.diffuse_material[k] * LN;
+                            //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
+                            //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
+                            Vec3 R = 2 * LN * normal - L;
+                            R.normalize();
+                            Vec3 V = ray.origin() - intersection;
+                            V.normalize();
+                            RV = Vec3::dot(R, V);
+                            Is = lights[i].material[k] * squares[index].material.specular_material[k] * pow(RV, shininess);
 
-                        color[k] += Ia + Is + Id;
+                            color[k] += Ia + Is + Id;
+                            if (color[k] < 0.000001)
+                            {
+                                color[k] = 0;
+                            }
+                        }
+                        
                     }
                 }
             }
