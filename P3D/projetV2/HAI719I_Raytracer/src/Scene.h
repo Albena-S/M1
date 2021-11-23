@@ -125,23 +125,30 @@ public:
         return result;
     }
 
-    float intersectSmth(Ray const & ray) {
+    float intersectSmth(Ray const &ray)
+    {
 
         //Meshes
-        for(unsigned int i = 0; i < meshes.size(); i++) {
+        for (unsigned int i = 0; i < meshes.size(); i++)
+        {
             RayTriangleIntersection rayMesh = meshes[i].intersect(ray);
-            if(rayMesh.intersectionExists) return rayMesh.t;
+            if (rayMesh.intersectionExists)
+                return rayMesh.t;
         }
 
         // Spheres
-        for(unsigned int i = 0; i < spheres.size(); i++) {
+        for (unsigned int i = 0; i < spheres.size(); i++)
+        {
             RaySphereIntersection raySphere = spheres[i].intersect(ray);
-            if(raySphere.intersectionExists) return raySphere.t;
+            if (raySphere.intersectionExists)
+                return raySphere.t;
         }
         // Squares
-        for(unsigned int i = 0; i < squares.size(); i++) {
+        for (unsigned int i = 0; i < squares.size(); i++)
+        {
             RaySquareIntersection raySquare = squares[i].intersect(ray);
-            if(raySquare.intersectionExists) return raySquare.t;
+            if (raySquare.intersectionExists)
+                return raySquare.t;
         }
         return 0;
     }
@@ -174,12 +181,37 @@ public:
                 {
                     for (unsigned int i = 0; i < lights.size(); i++)
                     {
-                        
-                        Vec3 L = lights[i].pos - intersection;
+
+                        Vec3 L;
+
+                        /*                         int echant = 4, nb_shadows = 0;
+                        float diametre = 2 * lights[i].radius,
+                            x0 = lights[i].pos[0] - lights[i].radius,
+                            y0 = lights[i].pos[1] - lights[i].radius,
+                            z0 = lights[i].pos[3] - lights[i].radius;
+
+                       
+                        float pas = (lights[i].pos[0] - lights[i].radius)/echant;
+                        Vec3 quad_lighths[echant*echant] ;
+
+                        for (int x = 0; x < echant; x++){
+                            for (int y = 0; y < echant; y++){
+                                 L = Vec3(x0 + pas*x, y0 + pas*y, z0) - intersection;
+                                L.normalize();
+                                shadowRay = Ray(intersection, L);
+                                float ombre = intersectSmth(shadowRay);
+                                if (ombre < 1 && ombre > 0.0001){ nb_shadows ++; }
+                            }
+                        }
+                        //std::cout << "nb_shadows : " <<nb_shadows << std::endl;  
+                        float coef = (float) nb_shadows/(echant*echant); */
+                        //if (nb_shadows > 0) std::cout << "coef : " << coef << std::endl;
+                        L = lights[i].pos - intersection;
                         L.normalize();
                         shadowRay = Ray(intersection, L);
                         float ombre = intersectSmth(shadowRay);
-                        if (!((ombre < 1 && ombre > 0.0001))){
+                        if (!(ombre < 1 && ombre > 0.0001))
+                        {
                             //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
                             Ia = lights[i].material[k] * spheres[index].material.ambient_material[k];
                             //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
@@ -195,6 +227,7 @@ public:
                             Is = lights[i].material[k] * spheres[index].material.specular_material[k] * pow(RV, shininess);
 
                             color[k] += Ia + Is + Id;
+                            //if (coef != 0.) color[k] *= coef;
                             if (color[k] < 0.000001)
                             {
                                 color[k] = 0;
@@ -202,7 +235,6 @@ public:
                         }
                     }
                 }
-                
             }
             break;
             case 2:
@@ -212,20 +244,59 @@ public:
                     shininess = squares[index].material.shininess;
                 Vec3 normal = raySceneIntersection.raySquareIntersection.normal,
                      intersection = raySceneIntersection.raySquareIntersection.intersection;
-                for (unsigned int k = 0; k < 3; k++)
+                for (unsigned int i = 0; i < lights.size(); i++)
                 {
-                    for (unsigned int i = 0; i < lights.size(); i++)
+
+                    Vec3 L;
+
+                    int echant = 3, nb_shadows = 0;
+                    float diametre = 2 * lights[i].radius,
+                          x0 = lights[i].pos[0] - lights[i].radius * 0.2,
+                          y0 = lights[i].pos[1], //lights[i].pos[1] - lights[i].radius*0.1,
+                          z0 = lights[i].pos[2] - lights[i].radius * 0.2;
+
+                    float pas = (diametre * 0.2) / (echant-1); /*, 
+                              pasX = ((lights[i].pos[0] - lights[i].radius*0.1)/echant),
+                              pasY = ((lights[i].pos[1] - lights[i].radius*0.1)/echant),
+                              pasZ = ((lights[i].pos[2] - lights[i].radius*0.1)/echant)  
+                        std::cout << "pas" << pas <<" diametre" << diametre << std::endl; 
+                        std::cout << "lights[i].pos" << lights[i].pos << std::endl; */
+                    for (int x = 0; x < echant ; x++)
                     {
-                        
-                        Vec3 L = lights[i].pos - intersection;
+                        //for (int y = 0; y < echant; y++){
+                        for (int z = 0; z < echant ; z++)
+                        {
+                            // std::cout << "      Vec3(x0 + pas*x, y0, z0 + pas*z)" << Vec3(x0 + pas*x, y0, z0 + pas*z) << std::endl;
+                            L = Vec3(x0 + pas * x, y0, z0 + pas * z) - intersection;
+                            L.normalize();
+                            shadowRay = Ray(intersection, L);
+                            float ombre = intersectSmth(shadowRay);
+                            if (ombre < 1 && ombre > 0.0001)
+                            {
+                                nb_shadows++;
+                            }
+                        }
+                        //}
+                    }
+                    //std::cout << "nb_shadows : " <<nb_shadows << std::endl;
+                    float coef = (float)nb_shadows / (echant * echant);
+                    //if (coef != 0.) std::cout << "coef : " <<coef << std::endl;
+
+                    /* L = lights[i].pos - intersection;
                         L.normalize();
                         shadowRay = Ray(intersection, L);
                         float ombre = intersectSmth(shadowRay);
-                        if (!((ombre < 1 && ombre > 0.0001))){
+                        if (!((ombre < 1 && ombre > 0.0001))){ */
+                    if (coef != 1.)
+                    {
+                        
+                        for (unsigned int k = 0; k < 3; k++)
+                        {
+
                             //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
                             Ia = lights[i].material[k] * squares[index].material.ambient_material[k];
                             //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
-                            
+
                             LN = Vec3::dot(L, normal);
                             Id = lights[i].material[k] * squares[index].material.diffuse_material[k] * LN;
                             //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
@@ -238,12 +309,13 @@ public:
                             Is = lights[i].material[k] * squares[index].material.specular_material[k] * pow(RV, shininess);
 
                             color[k] += Ia + Is + Id;
+
+                            color[k] *= 1 - coef*0.5;
                             if (color[k] < 0.000001)
                             {
                                 color[k] = 0;
                             }
                         }
-                        
                     }
                 }
             }
