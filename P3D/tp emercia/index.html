@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>WebGL PBR TP</title>
+    <link rel="stylesheet" href="./webgl.css" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+      integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+      crossorigin="anonymous" defer>
+    </script>
+    <script src="webgl-demo.js" defer></script>
+  </head>
+
+  <body>
+	  <div id="fps">FPS</div>
+    <canvas id="glcanvas" width="640" height="480"></canvas>
+	<div>
+		<h1>Parameters</h1>
+		<div id="parameters">
+		</div>
+	</div>
+	<script id="vs" type="x-shader/x-vertex">
+	  precision highp float;
+	  attribute vec3 aVertexPosition;
+	  attribute vec3 aVertexNormal;
+	  attribute vec2 aVertexUV;
+
+	  uniform mat4 uNormalMatrix;
+	  uniform mat4 uViewMatrix;
+	  uniform mat4 uModelMatrix;
+	  uniform mat4 uModelViewMatrix;
+	  uniform mat4 uProjectionMatrix;
+
+	  varying vec3 vNormal;
+	  varying vec3 vFragPos;
+	  varying vec2 vFragUV;
+
+	  void main(void) {
+		vFragPos = vec3(uModelMatrix * vec4(aVertexPosition, 1.0));
+    	vNormal = vec3(uNormalMatrix * vec4(aVertexNormal, 1.0));
+		vFragUV = aVertexUV;
+
+		gl_Position = uProjectionMatrix * uViewMatrix * vec4(vFragPos, 1.0);
+	  }
+	</script>
+	<script id="fs" type="x-shader/x-fragment">
+	precision highp float;
+// Fragment-Interpolated data
+	varying vec3 vNormal;
+	varying vec3 vFragPos;
+	varying vec2 vFragUV;
+
+// Camera
+	uniform vec3 uViewPos;
+// Light
+	uniform vec3 uLightPos;
+	uniform vec3 uLightColor;
+
+// Material
+	uniform vec3 uObjectColor;
+	uniform vec3 uShininess;
+	// uniform sampler2D uSampler;// texture
+
+//PBR parameters
+ uniform vec3 uAlbedo;
+ uniform vec3 uMetalness; 
+ uniform vec3 uRoughness; 
+ uniform vec3 uAo;
+
+ float f(vec3 l,vec3 v){
+ 	 float F0 = 0.02, //water
+ 	 			 k = pow(1 +uRoughness,2 )/8,
+ 	 			 F = FSchlick(F0, l, h),
+ 	 			 G = G(l,v, k),
+ 	 			 D = D(n, h, uRoughness);
+ 	 			 //ajout epsilon pour ne pas diviser par 0
+ 	 return (F*G*D) / (4 * max(0.,dot(n, l)) * max(0.,dot(n,v)) + .00001);
+
+ }
+
+
+ float F(vec3 l, vec3 h){
+ 	float fLambert = uAlbedo / M_PI;
+ 	return (1.0 - ks ) * fLambert + ks * f(l,v);
+ }
+
+ float FSchlick(float F0, vec3 l, vec3 n){
+ 	return F0 + (1 - F0)*(pow(1-dot(l,n) , 5));
+ }
+
+ float D(vec3 n, vec3 h, float rugosite){
+ 	float denom = M_PI * pow( (pow(max(0.,dot(n,h)),2) * ( pow(rugosite,2) -1) +1), 2) ;
+ 	return  pow(rugosite,2) / denom;
+ }
+
+ float G(vec3 n, vec3 v, float facteurRugosite){
+ 	float nv = dot(n,v);
+ 	return nv / ((nv)*(1-k) + k);
+ }
+ 
+	void main(void) {
+	  // highp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+
+	  // ambient
+	   float ambientStrength = 0.1;
+	   vec3 ambient = ambientStrength * uLightColor;
+
+	   // diffuse
+	   vec3 norm = normalize(vNormal);
+	   vec3 lightDir = normalize(uLightPos - vFragPos);
+	   float diff = max(dot(norm, lightDir), 0.0);
+	   vec3 diffuse = diff * uLightColor;
+
+	   // specular
+	   float specularStrength = 0.5;
+	   vec3 viewDir = normalize(uViewPos - vFragPos);
+	   vec3 reflectDir = reflect(-lightDir, norm);
+	   float spec = max(dot(viewDir, reflectDir), 0.0);
+	   vec3 specular = specularStrength * spec * uLightColor;
+
+	   vec3 result = (ambient + diffuse + specular) * uObjectColor;
+	   gl_FragColor = vec4(result, 1.0);
+
+	   // TODO Implement https://google.github.io/filament/Filament.html
+
+
+
+	}
+	</script>
+  </body>
+</html>
