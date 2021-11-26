@@ -1,6 +1,7 @@
 #include "Wave.hpp"
 #include <math.h>
 #include <iostream>
+#include <string>
 
 
 /*0  255  x
@@ -60,6 +61,102 @@ void real_to_uchar_N(double *partie_reelle,
 
 }
 
+int trouver_m(int N){
+	int m = 0;
+	int M = 1;
+	while( M < N){
+		m++;
+		M = M*2;
+	}
+	return m;
+}
+
+/*
+	This FFT has been proposed by Paul Bourke 
+	http://paulbourke.net/miscellaneous/dft/
+	This computes an in-place complex-to-complex FFT 
+	x and y are the real and imaginary arrays of 2^m points.
+	dir =  1 gives forward transform
+	dir = -1 gives reverse transform 
+	You MUST compute first the value m such that
+	2^(m-1) < n (size of your signal) <= 2^m
+	allocate a new signal of nm=2^m values
+	then fill the n first values of this new signal 
+ with your signal and fill the rest with 0
+	WARNING : you must pass m, not nm !!!
+	*/
+
+int FFT(int dir,int m,double *x,double *y)
+{
+	int n,i,i1,j,k,i2,l,l1,l2;
+	double c1,c2,tx,ty,t1,t2,u1,u2,z;
+	
+	/* Calculate the number of points */
+	n = 1;
+	for (i=0;i<m;i++) 
+		n *= 2;
+	
+	/* Do the bit reversal */
+	i2 = n >> 1;
+	j = 0;
+	for (i=0;i<n-1;i++) {
+		if (i < j) {
+			tx = x[i];
+			ty = y[i];
+			x[i] = x[j];
+			y[i] = y[j];
+			x[j] = tx;
+			y[j] = ty;
+		}
+		k = i2;
+		while (k <= j) {
+			j -= k;
+			k >>= 1;
+		}
+		j += k;
+	}
+	
+	/* Compute the FFT */
+	c1 = -1.0; 
+	c2 = 0.0;
+	l2 = 1;
+	for (l=0;l<m;l++) {
+		l1 = l2;
+		l2 <<= 1;
+		u1 = 1.0; 
+		u2 = 0.0;
+		for (j=0;j<l1;j++) {
+			for (i=j;i<n;i+=l2) {
+				i1 = i + l1;
+				t1 = u1 * x[i1] - u2 * y[i1];
+				t2 = u1 * y[i1] + u2 * x[i1];
+				x[i1] = x[i] - t1; 
+				y[i1] = y[i] - t2;
+				x[i] += t1;
+				y[i] += t2;
+			}
+			z =  u1 * c1 - u2 * c2;
+			u2 = u1 * c2 + u2 * c1;
+			u1 = z;
+		}
+		c2 = sqrt((1.0 - c1) / 2.0);
+		if (dir == 1) 
+			c2 = -c2;
+		c1 = sqrt((1.0 + c1) / 2.0);
+	}
+	
+	/* Scaling for forward transform */
+	if (dir == 1) {
+		for (i=0;i<n;i++) {
+			x[i] /= n;
+			y[i] /= n;
+		}
+	}
+	
+	return(1);
+}
+
+
 void DFT(double *signal, 
 		double *partie_reelle, 
 		double *partie_imaginaire, 
@@ -88,6 +185,16 @@ void DFT(double *signal,
 	
 }
 
+void IDFT(double *signal, 
+		double *partie_reelle, 
+		double *partie_imaginaire, 
+		int N){
+	//m = 2^N
+	FFT(-1, trouver_m(N) ,partie_reelle, partie_imaginaire  );
+
+}
+
+
 int main (int argc, char** argv){
 
 /*
@@ -115,9 +222,9 @@ int main (int argc, char** argv){
 
 	Wave res = Wave(X, n, 1, freq_echant);
 	res.write("La.wav");
-*/
-	std::cout << "115" <<" ";
 
+	std::cout << "115" <<" ";
+	//exemple avec mon dft
 	double duree = .5,
 			freq_echant = 44100.,
 			freq_la = 440.,
@@ -136,15 +243,53 @@ int main (int argc, char** argv){
 	for (int k = 0; k < n; k++){
 		Y[k] = sin(alpha*k);
 	}
-	unsigned char X[n];
+	//unsigned char X[n];
 	double partie_reelle[n], 
 		   partie_imaginaire[n];
 
-	DFT(Y, partie_reelle, partie_imaginaire, n);
 	
+	DFT(Y, partie_reelle, partie_imaginaire, n);
 	real_to_uchar_N(partie_reelle, partie_imaginaire, X, n);
-
 	Wave res = Wave(X, n, 1, freq_echant);
-	res.write("testExo2.wav");
+	res.write("testExo2IDFT.wav");
+
+	*/
+	double duree = .5,
+			freq_echant = 44100.,
+			freq_la = 440.;
+
+	int n = (int) floor(freq_echant * duree);
+	int m = trouver_m(n),
+		M = (int)floor(pow(2,m));
+	double partie_reelle[M],partie_imaginaire[M];
+	double alpha;
+
+	alpha = 2*M_PI * freq_la / freq_echant;
+	for (int k = 0; k < n; k++){
+		partie_reelle[k] = sin(alpha*k);
+		partie_imaginaire[k] = .0;
+	}
+	for (int i = n; i < M; i++ ){
+		partie_reelle[i] = .0;
+		partie_imaginaire[i] = .0;
+	}
+	//std::cout << "partie_reelle[n-1]" << partie_reelle[n-1] << " partie_reelle[n]" << partie_reelle[n]<< std::endl;
+	FFT(1, M, partie_reelle, partie_imaginaire);
+	//std::cout << "partie_reelle[n-1]" << partie_reelle[n-1] << " partie_reelle[n]" << partie_reelle[n]<< std::endl;
+	
+	FFT(-1, M, partie_reelle, partie_imaginaire);
+
+	unsigned char signal_final_M[M], signal_final[n];
+
+	double_to_uchar(partie_reelle, signal_final_M, M );
+	std::cout << "signal_final_M[n]" << signal_final_M[n]<< std::endl;
+	
+	//std::cout << << std::endl;
+	for (int i = 0; i < n; i++ ){
+		signal_final[i] = signal_final_M[i]; 
+	}
+
+	Wave res = Wave(signal_final, n, 1, freq_echant);
+	res.write("testExo2IDFT.wav");
 	return 0;
 }
