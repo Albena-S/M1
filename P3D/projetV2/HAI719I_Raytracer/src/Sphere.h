@@ -15,15 +15,15 @@ struct RaySphereIntersection{
     RaySphereIntersection() : intersectionExists(false) , t(FLT_MAX) {}
 };
 
-static
+/* static
 Vec3 SphericalCoordinatesToEuclidean( Vec3 ThetaPhiR ) {
     return ThetaPhiR[2] * Vec3( cos(ThetaPhiR[0]) * cos(ThetaPhiR[1]) , sin(ThetaPhiR[0]) * cos(ThetaPhiR[1]) , sin(ThetaPhiR[1]) );
-}
+}*/
 static
 Vec3 SphericalCoordinatesToEuclidean( float theta , float phi ) {
     return Vec3( cos(theta) * cos(phi) , sin(theta) * cos(phi) , sin(phi) );
-}
-
+} 
+/*
 static
 Vec3 EuclideanCoordinatesToSpherical( Vec3 xyz ) {
     float R = xyz.length();
@@ -31,7 +31,7 @@ Vec3 EuclideanCoordinatesToSpherical( Vec3 xyz ) {
     float theta = atan2( xyz[1] , xyz[0] );
     return Vec3( theta , phi , R );
 }
-
+*/
 
 
 class Sphere : public Mesh {
@@ -88,7 +88,7 @@ public:
         //TODO calcul l'intersection rayon sphere
 
         Vec3 d = ray.direction(),o_c = ray.origin() - m_center;
-        float a,b,c,t, discr,
+        float a,b,c,discr,
          r = this->m_radius;
         a = Vec3::dot(d,d);
         b = 2. * Vec3::dot(d, (o_c));

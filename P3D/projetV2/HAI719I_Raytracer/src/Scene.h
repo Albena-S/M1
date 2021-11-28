@@ -79,72 +79,60 @@ public:
 
     RaySceneIntersection computeIntersection(Ray const &ray)
     {
-        RaySceneIntersection result;
-        //TODO calculer les intersections avec les objets de la scene et garder la plus proche
-        //parcourir tous les objets de la scene, garder celui dont le t est le plus petit
+        RaySceneIntersection intersection;
+        unsigned int  sphereSIze = spheres.size();
+        unsigned int squareSize = squares.size();
 
-        int sphSize = spheres.size();
-        int sqSize = squares.size();
-
-        for (int i = 0; i < sphSize; i++)
+        for (unsigned int i = 0; i < sphereSIze; i++)
         {
-            RaySphereIntersection sInter = spheres[i].intersect(ray); //intersection avec single sphere
+            RaySphereIntersection sphereIntersection = spheres[i].intersect(ray); 
 
-            if (sInter.intersectionExists)
+            if (sphereIntersection.intersectionExists)
             {
-                if (sInter.t < result.t)
+                if (sphereIntersection.t < intersection.t)
                 {
-                    result.t = sInter.t;
-                    result.objectIndex = i;
-                    result.typeOfIntersectedObject = 1; // intersection avec single sphere
-                    result.intersectionExists = true;
-                    result.raySphereIntersection = sInter;
+                    intersection.t = sphereIntersection.t;
+                    intersection.objectIndex = i;
+                    intersection.typeOfIntersectedObject = 1; 
+                    intersection.intersectionExists = true;
+                    intersection.raySphereIntersection = sphereIntersection;
                 }
             }
         }
 
-        for (int i = 0; i < sqSize; i++)
+        for (unsigned int i = 0; i < squareSize; i++)
         {
-            // std::cout<<"dans le carré "<<i<<std::endl;
-            RaySquareIntersection sqInter = squares[i].intersect(ray); //intersection avec single square
+            RaySquareIntersection squareIntersection = squares[i].intersect(ray); 
 
-            if (sqInter.intersectionExists)
+            if (squareIntersection.intersectionExists)
             {
-                // std::cout<<"inter square"<<std::endl;
-                if (sqInter.t < result.t)
+                if (squareIntersection.t < intersection.t)
                 {
-                    result.t = sqInter.t;
-                    result.objectIndex = i;
-                    result.typeOfIntersectedObject = 2; //intersection avec single square
-                    result.intersectionExists = true;
-                    result.raySquareIntersection = sqInter;
+                    intersection.t = squareIntersection.t;
+                    intersection.objectIndex = i;
+                    intersection.typeOfIntersectedObject = 2;
+                    intersection.intersectionExists = true;
+                    intersection.raySquareIntersection = squareIntersection;
                 }
             }
         }
 
-        return result;
+        return intersection;
     }
 
-    float intersectSmth(Ray const &ray)
+    float searchFirstIntersection(Ray const &ray)
     {
 
-        //Meshes
-        for (unsigned int i = 0; i < meshes.size(); i++)
-        {
-            RayTriangleIntersection rayMesh = meshes[i].intersect(ray);
-            if (rayMesh.intersectionExists)
-                return rayMesh.t;
-        }
-
-        // Spheres
-        for (unsigned int i = 0; i < spheres.size(); i++)
+        unsigned int  sphereSIze = spheres.size();
+        unsigned int squareSize = squares.size();
+               
+        for (unsigned i = 0; i < sphereSIze; i++)
         {
             RaySphereIntersection raySphere = spheres[i].intersect(ray);
             if (raySphere.intersectionExists)
                 return raySphere.t;
         }
-        // Squares
-        for (unsigned int i = 0; i < squares.size(); i++)
+        for (unsigned i = 0; i < squareSize; i++)
         {
             RaySquareIntersection raySquare = squares[i].intersect(ray);
             if (raySquare.intersectionExists)
@@ -153,13 +141,42 @@ public:
         return 0;
     }
 
+    float calculateCoef(int i, int echant, Vec3 intersection, float minimiseBy)
+    {
+        int nb_shadows = 0;
+        float radius = lights[i].radius;
+        float diametre = 2 * lights[i].radius * minimiseBy,
+              x0 = lights[i].pos[0] + radius * minimiseBy,
+              y0 = lights[i].pos[1],
+              z0 = lights[i].pos[2] + radius * minimiseBy;
+        Vec3 L;
+        Ray shadowRay;
+
+        float pas = diametre / (echant - 1);
+        for (int x = 0; x < echant; x++)
+        {
+            for (int z = 0; z < echant; z++)
+            {
+                L = Vec3(x0 - x * pas, y0, z0 - z * pas) - intersection;
+
+                L.normalize();
+                shadowRay = Ray(intersection, L);
+                float ombre = searchFirstIntersection(shadowRay);
+                if (ombre < 1 && ombre > 0.00001) nb_shadows++;
+
+            }
+        }
+        return (float)nb_shadows / (echant * echant);
+    }
+
     Vec3 rayTraceRecursive(Ray ray, int NRemainingBounces)
     {
 
-        //TODO RaySceneIntersection raySceneIntersection = computeIntersection(ray);
         RaySceneIntersection raySceneIntersection = computeIntersection(ray);
         Ray shadowRay;
         Vec3 color;
+        int echant = 9;
+        float minimiseBy = .2;
         //color par default - fon d'ecran - ex vec3(0.,0,.0.)
         color = Vec3(0., 0., 0.);
         if (raySceneIntersection.intersectionExists)
@@ -177,40 +194,19 @@ public:
                 Vec3 normal = raySceneIntersection.raySphereIntersection.normal,
                      intersection = raySceneIntersection.raySphereIntersection.intersection;
 
-                for (unsigned int k = 0; k < 3; k++)
+                for (unsigned int i = 0; i < lights.size(); i++)
                 {
-                    for (unsigned int i = 0; i < lights.size(); i++)
+
+                    Vec3 L;
+                    L = lights[i].pos - intersection;
+                    L.normalize();
+
+                    float coef = calculateCoef(i, echant, intersection, minimiseBy);
+
+                    if (coef != 1.)
                     {
 
-                        Vec3 L;
-
-                        /*                         int echant = 4, nb_shadows = 0;
-                        float diametre = 2 * lights[i].radius,
-                            x0 = lights[i].pos[0] - lights[i].radius,
-                            y0 = lights[i].pos[1] - lights[i].radius,
-                            z0 = lights[i].pos[3] - lights[i].radius;
-
-                       
-                        float pas = (lights[i].pos[0] - lights[i].radius)/echant;
-                        Vec3 quad_lighths[echant*echant] ;
-
-                        for (int x = 0; x < echant; x++){
-                            for (int y = 0; y < echant; y++){
-                                 L = Vec3(x0 + pas*x, y0 + pas*y, z0) - intersection;
-                                L.normalize();
-                                shadowRay = Ray(intersection, L);
-                                float ombre = intersectSmth(shadowRay);
-                                if (ombre < 1 && ombre > 0.0001){ nb_shadows ++; }
-                            }
-                        }
-                        //std::cout << "nb_shadows : " <<nb_shadows << std::endl;  
-                        float coef = (float) nb_shadows/(echant*echant); */
-                        //if (nb_shadows > 0) std::cout << "coef : " << coef << std::endl;
-                        L = lights[i].pos - intersection;
-                        L.normalize();
-                        shadowRay = Ray(intersection, L);
-                        float ombre = intersectSmth(shadowRay);
-                        if (!(ombre < 1 && ombre > 0.0001))
+                        for (unsigned int k = 0; k < 3; k++)
                         {
                             //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
                             Ia = lights[i].material[k] * spheres[index].material.ambient_material[k];
@@ -227,8 +223,9 @@ public:
                             Is = lights[i].material[k] * spheres[index].material.specular_material[k] * pow(RV, shininess);
 
                             color[k] += Ia + Is + Id;
+                            color[k] *= 1 - coef;
                             //if (coef != 0.) color[k] *= coef;
-                            if (color[k] < 0.000001)
+                            if (color[k] < 0.001)
                             {
                                 color[k] = 0;
                             }
@@ -248,48 +245,13 @@ public:
                 {
 
                     Vec3 L;
+                    L = lights[i].pos - intersection;
+                    L.normalize();
 
-                    int echant = 3, nb_shadows = 0;
-                    float diametre = 2 * lights[i].radius,
-                          x0 = lights[i].pos[0] - lights[i].radius * 0.2,
-                          y0 = lights[i].pos[1], //lights[i].pos[1] - lights[i].radius*0.1,
-                          z0 = lights[i].pos[2] - lights[i].radius * 0.2;
-
-                    float pas = (diametre * 0.2) / (echant-1); /*, 
-                              pasX = ((lights[i].pos[0] - lights[i].radius*0.1)/echant),
-                              pasY = ((lights[i].pos[1] - lights[i].radius*0.1)/echant),
-                              pasZ = ((lights[i].pos[2] - lights[i].radius*0.1)/echant)  
-                        std::cout << "pas" << pas <<" diametre" << diametre << std::endl; 
-                        std::cout << "lights[i].pos" << lights[i].pos << std::endl; */
-                    for (int x = 0; x < echant ; x++)
-                    {
-                        //for (int y = 0; y < echant; y++){
-                        for (int z = 0; z < echant ; z++)
-                        {
-                            // std::cout << "      Vec3(x0 + pas*x, y0, z0 + pas*z)" << Vec3(x0 + pas*x, y0, z0 + pas*z) << std::endl;
-                            L = Vec3(x0 + pas * x, y0, z0 + pas * z) - intersection;
-                            L.normalize();
-                            shadowRay = Ray(intersection, L);
-                            float ombre = intersectSmth(shadowRay);
-                            if (ombre < 1 && ombre > 0.0001)
-                            {
-                                nb_shadows++;
-                            }
-                        }
-                        //}
-                    }
-                    //std::cout << "nb_shadows : " <<nb_shadows << std::endl;
-                    float coef = (float)nb_shadows / (echant * echant);
-                    //if (coef != 0.) std::cout << "coef : " <<coef << std::endl;
-
-                    /* L = lights[i].pos - intersection;
-                        L.normalize();
-                        shadowRay = Ray(intersection, L);
-                        float ombre = intersectSmth(shadowRay);
-                        if (!((ombre < 1 && ombre > 0.0001))){ */
+                    float coef = calculateCoef(i, echant, intersection, minimiseBy);
                     if (coef != 1.)
                     {
-                        
+
                         for (unsigned int k = 0; k < 3; k++)
                         {
 
@@ -310,8 +272,8 @@ public:
 
                             color[k] += Ia + Is + Id;
 
-                            color[k] *= 1 - coef*0.5;
-                            if (color[k] < 0.000001)
+                            color[k] *= 1 - coef;
+                            if (color[k] < 0.001)
                             {
                                 color[k] = 0;
                             }
@@ -330,7 +292,7 @@ public:
 
     Vec3 rayTrace(Ray const &rayStart)
     {
-        //TODO appeler la fonction recursive
+        
         Vec3 color;
         color = rayTraceRecursive(rayStart, 1);
         return color;

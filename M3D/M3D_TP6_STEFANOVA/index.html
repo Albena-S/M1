@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+	<meta charset="utf-8">
+	<link rel="stylesheed" href="css/webgl.css">
+	<script type="text/javascript" src="js/webgl-utils.js"></script>
+	<script type="text/javascript" src="js/gl-matrix-min.js"></script>
+	<script type="text/javascript" src="js/Shader.js"></script>
+	<script type="text/javascript" src="js/BufferedDataType.js"></script>
+	<script type="text/javascript" src="js/BufferedData.js"></script>
+	<script type="text/javascript" src="js/Shape.js"></script>
+</head>
+
+<body>
+	<canvas id="canvas0" width="400" height="400"></canvas>
+
+	<script type="x-shader/x-vertex" id="vscs">#version 300 es
+	in vec2 js_coords;
+	uniform mat4x4 js_u_projection;
+	uniform mat4x4 js_u_modelView;
+	void main(){
+	    gl_Position =  js_u_projection * js_u_modelView * vec4(js_coords, 0.0, 1.0);
+	}
+	</script>
+	<script type="x-shader/x-fragment" id="fscs">#version 300 es
+		precision mediump float;
+		uniform int js_u_uniform_colors;
+		uniform vec4 js_u_color;
+		out vec4 glFragColor;
+		void main(){
+	    	glFragColor = js_u_color ;
+		}
+	</script>
+	<script type="text/javascript">
+		let shader = new Shader("canvas0", "vscs", "fscs");
+		let gl = shader.init(0, .3, .4, false, false);
+		let ballSize = 15;
+		let ball = new Shape([-shader.width / 2, shader.height / 2, 0], ballSize, [.5, .5, .5, 0.8], [1, 1, 1, 0.3], 64);
+		let r, v, b, y, x;
+		r = Math.random();
+		v = Math.random();
+		b = Math.random();
+		ball.setBgColor(r, v, b);
+		let duration = 3000 /2;// 10 * 2;
+		let id, animationOn, startTime;
+
+		// accepts a timing function, returns the transformed variant
+		function makeEaseOut(timing) {
+			return function (timeFraction) {
+				return 1 - timing(1 - timeFraction);
+			}
+		}
+
+		function bounce(timeFraction) {
+			for (let a = 0, b = 1; 1; a += b, b /= 2) {
+				if (timeFraction >= (7 - 4 * a) / 11) {
+					return -Math.pow((11 - 6 * a - 11 * timeFraction) / 4, 2) + Math.pow(b, 2)
+				}
+			}
+		}
+
+		let bounceEaseOut = makeEaseOut(bounce);
+
+		function interpolation(t) {
+			return bounceEaseOut(t);
+		}
+
+		function linear(timeFraction) {
+			return timeFraction;
+		}
+		function back(x, timeFraction) {
+			return Math.pow(timeFraction, 2) * ((x + 1) * timeFraction - x);
+		}
+		function squish(relativeTime, x1, y1, z1) {
+			shader.translate(-x, -y, 0, 0);
+			shader.scale(1, 1, 1);//linear)(relativeTime) * (shader.height - ballSize) / 2 /1000,1);
+			shader.translate(x, y, 0, 0);
+			
+		}
+		function display(t) {
+			if (startTime == null) startTime = t;
+			let relativeTime = (t - startTime) / duration;
+			console.log("t = " + relativeTime);
+			if (relativeTime <= 4) {
+				animationOn = true;
+				id = requestAnimationFrame(display);
+				shader.initDisplay(0, .3, .4);
+				shader.initModelView();
+
+				if (relativeTime <= 1) {
+					y = -(interpolation)(relativeTime) * (shader.height - ballSize);
+					x = (linear)(relativeTime) * (shader.height - ballSize) / 2;
+				} else if (relativeTime <= 2) {
+					x = (linear)(relativeTime) * (shader.height - ballSize) / 2;
+				} else if (relativeTime <= 3) {
+					x = (linear)(4 - relativeTime) * (shader.height - ballSize) / 2;
+				} else {
+					y = -(interpolation)(4 - relativeTime) * (shader.height - ballSize);
+					x = (linear)(4 - relativeTime) * (shader.height - ballSize) / 2;
+				}
+
+				shader.translate(x, y, 0, 0);
+				squish(1, 1, 1);
+				ball.drawWith(shader);
+
+			} /* else if (animationOn) {
+				console.log("animation stopped");
+				cancelAnimationFrame(id);
+				//animationOn = false;
+				id = window.requestAnimationFrame(display); }*/
+			else {
+				startTime = null;
+
+				id = requestAnimationFrame(display);
+				shader.initDisplay(0, .3, .4);
+				shader.initModelView();
+			}
+
+		}
+		id = requestAnimationFrame(display);
+	</script>
+</body>
+
+</html>
