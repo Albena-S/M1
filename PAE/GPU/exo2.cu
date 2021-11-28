@@ -24,7 +24,7 @@ __global__ void vecAdd2DKernel(float *A,
                              float *B,
                              float *C,
                              int x,
-			     int y){
+			                       int y){
   int i=blockIdx.x*blockDim.x+threadIdx.x;
   int j=blockIdx.y*blockDim.y+threadIdx.y; 	
   if (i < x && j < y) C[i*x + j]= A[i*x + j] + B[i*x + j];//C[j*y +i]= A[j*y +i] + B[j*y +i];
@@ -61,7 +61,7 @@ __host__ void vecAdd2D(float *h_A,
                        float *h_B,
                        float *h_C,
                        int x,
-		       int y) {
+		                   int y) {
   int size = x*y * sizeof(float);
   float *d_A, *d_B, *d_C;
 
@@ -72,15 +72,22 @@ __host__ void vecAdd2D(float *h_A,
   cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice );
   cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice );
 
-  
-  int threads=32;
-  int blocks=32;
 
-//dim3 DimGrid((n-1)/256 + 1, 1, 1);
-//dim3 DimBlock(256, 1, 1);
+  dim3 DimGrid((x-1)/16 + 1, (y-1)/16 + 1, 1);
+  dim3 DimBlock(16, 16, 1);
+  //le max c'est 1024 donc 32x32 mais c'est mieux d'utiliser 16x16
+  //1. decision du nombre de threads donc dimblock
+  //2.divise par le nombre de threads pour avoir le nombre de blocs donc dimGrid
+   // nvcc deviceQuery.cpp -I/usr/local/cuda-11.4/samples/common/inc
+   // ./a.out 
 
 
-  vecAdd2DKernel<<<blocks,threads>>>(d_A, d_B, d_C, x, y);
+  //Maximum number of threads per multiprocessor:  2048
+  //Maximum number of threads per block:           1024
+
+
+
+  vecAdd2DKernel<<<DimGrid,DimBlock>>>(d_A, d_B, d_C, x, y);
 
   cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost );
   cudaFree(d_A);
