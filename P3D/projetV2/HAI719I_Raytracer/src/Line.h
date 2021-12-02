@@ -20,6 +20,11 @@ public:
     Vec3 const & direction() const { return m_direction; }
     Vec3 project( Vec3 const & p ) const {
         Vec3 result;
+        op = p - m_origin;
+        float t = Vec3::dot(op , m_direction ) / dot(ab,ab)
+        result = m_origin + Vec3::dot(op , )/dot(ab,ab) * ab;
+    return result
+
         //TODO completer
         return result;
     }

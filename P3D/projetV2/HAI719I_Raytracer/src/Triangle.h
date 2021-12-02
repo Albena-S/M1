@@ -3,6 +3,8 @@
 #include "Vec3.h"
 #include "Ray.h"
 #include "Plane.h"
+#include <cmath>
+#include <cfloat>
 
 struct RayTriangleIntersection{
     bool intersectionExists;
@@ -11,6 +13,7 @@ struct RayTriangleIntersection{
     unsigned int tIndex;
     Vec3 intersection;
     Vec3 normal;
+    RayTriangleIntersection() : intersectionExists(false) , t(FLT_MAX) {}
 };
 
 class Triangle {
@@ -63,6 +66,30 @@ public:
 
     RayTriangleIntersection getIntersection( Ray const & ray ) const {
         RayTriangleIntersection result;
+        //Condition 1 : le point est sur le rayon
+        //Condition 2 :le point est sur le plan
+        //Résoudre1&2 (intersection rayon plan)
+/*        Vec3 r = m_c[1] - m_c[0];
+        Vec3 u = m_c[2] - m_c[0];*/
+        Vec3 d = ray.direction(),
+             o = ray.origin(),
+             a = m_c[0].position;
+
+        float D = Vec3::dot(a, m_normal);
+
+        float t = (D - Vec3::dot(o, m_normal)) / Vec3::dot(d, m_normal);
+        Vec3 p = o + t * d;
+        if (t > 0)
+        {
+            
+        }
+
+        //aire Ac / aire de triangle = ratio de c donc gamma
+        //retourner la  normale interpolee dpnc alpha*norm au a + beta*norm de b
+        //normale au sommet cest la moyenne des normales aux triangles qui sont autour 
+        //float t = Vec3::dot((a - p),n) / Vec3::dot(d,n); 
+
+
         // 1) check that the ray is not parallel to the triangle:
 
         // 2) check that the triangle is "in front of" the ray:

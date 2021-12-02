@@ -145,28 +145,31 @@ public:
     {
         int nb_shadows = 0;
         float radius = lights[i].radius;
-        float diametre = 2 * lights[i].radius * minimiseBy,
-              x0 = lights[i].pos[0] + radius * minimiseBy,
-              y0 = lights[i].pos[1],
-              z0 = lights[i].pos[2] + radius * minimiseBy;
+        float diametre = 2 * lights[i].radius/2 ,//* minimiseBy,
+              x0 = lights[i].pos[0] - radius/2 ,
+              y0 = lights[i].pos[1] - radius/2,
+              z0 = lights[i].pos[2] - radius/2 ;
         Vec3 L;
         Ray shadowRay;
 
-        float pas = diametre / (echant - 1);
+        //float pas = diametre / (echant - 1);
+        float pasX, pasZ;
         for (int x = 0; x < echant; x++)
         {
-            for (int z = 0; z < echant; z++)
-            {
-                L = Vec3(x0 - x * pas, y0, z0 - z * pas) - intersection;
+            //for (int z = 0; z < echant; z++)
+            //{
+                pasX = (float) (rand() / (float)(RAND_MAX/(diametre)));
+                pasZ = (float) (rand() / (float)(RAND_MAX/(diametre)));
+                L = Vec3(x0 +  pasX, y0 , z0 + pasZ) - intersection;
 
                 L.normalize();
                 shadowRay = Ray(intersection, L);
                 float ombre = searchFirstIntersection(shadowRay);
                 if (ombre < 1 && ombre > 0.00001) nb_shadows++;
 
-            }
+            //}
         }
-        return (float)nb_shadows / (echant * echant);
+        return (float)nb_shadows / echant ;//(echant * echant);
     }
 
     Vec3 rayTraceRecursive(Ray ray, int NRemainingBounces)
@@ -174,9 +177,9 @@ public:
 
         RaySceneIntersection raySceneIntersection = computeIntersection(ray);
         Ray shadowRay;
-        Vec3 color;
-        int echant = 9;
-        float minimiseBy = .2;
+        Vec3 color;     
+        int echant = 10;
+        float minimiseBy = .5;
         //color par default - fon d'ecran - ex vec3(0.,0,.0.)
         color = Vec3(0., 0., 0.);
         if (raySceneIntersection.intersectionExists)
@@ -211,7 +214,7 @@ public:
                             //𝐼𝑎 = 𝐼𝑠𝑎 * 𝐾𝑎
                             Ia = lights[i].material[k] * spheres[index].material.ambient_material[k];
                             //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
-                            LN = Vec3::dot(L, normal);
+                            LN = std::max((float)Vec3::dot(L, normal),0.f);
                             Id = lights[i].material[k] * spheres[index].material.diffuse_material[k] * LN;
                             //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
                             //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
@@ -219,16 +222,18 @@ public:
                             R.normalize();
                             Vec3 V = ray.origin() - intersection;
                             V.normalize();
-                            RV = Vec3::dot(R, V);
+                            RV = std::max((float)Vec3::dot(R, V), 0.f);
                             Is = lights[i].material[k] * spheres[index].material.specular_material[k] * pow(RV, shininess);
-
+                            
                             color[k] += Ia + Is + Id;
                             color[k] *= 1 - coef;
+                            
                             //if (coef != 0.) color[k] *= coef;
                             if (color[k] < 0.001)
                             {
                                 color[k] = 0;
                             }
+                            
                         }
                     }
                 }
@@ -259,7 +264,7 @@ public:
                             Ia = lights[i].material[k] * squares[index].material.ambient_material[k];
                             //𝐼𝑑 = 𝐼𝑠𝑑 ∗ 𝐾𝑑 ∗ (𝐿. 𝑁)
 
-                            LN = Vec3::dot(L, normal);
+                            LN = std::max((float)Vec3::dot(L, normal),0.f);
                             Id = lights[i].material[k] * squares[index].material.diffuse_material[k] * LN;
                             //𝐼𝑠 = 𝐼𝑠𝑠 ∗ 𝐾𝑠 ∗ (𝑅. 𝑉)^𝑛
                             //𝑅 = 2 (𝑁. 𝐿) * 𝑁 − L
@@ -267,7 +272,7 @@ public:
                             R.normalize();
                             Vec3 V = ray.origin() - intersection;
                             V.normalize();
-                            RV = Vec3::dot(R, V);
+                            RV = std::max((float)Vec3::dot(R, V), 0.f);
                             Is = lights[i].material[k] * squares[index].material.specular_material[k] * pow(RV, shininess);
 
                             color[k] += Ia + Is + Id;

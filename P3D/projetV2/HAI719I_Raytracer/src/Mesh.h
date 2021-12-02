@@ -200,7 +200,7 @@ public:
 
     RayTriangleIntersection intersect( Ray const & ray ) const {
         RayTriangleIntersection closestIntersection;
-        closestIntersection.t = FLT_MAX;
+        
         // Note :
         // Creer un objet Triangle pour chaque face
         // Vous constaterez des problemes de précision
