@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-
+//dans les fichiers sonores il y a toujours une symetrie -> vibraitons sur une membrane
 /*0  255  x
 -1  1   y
 
@@ -71,6 +71,17 @@ int trouver_m(int N){
 	return m;
 }
 
+void normalize(double* signal,
+			   int N){
+	double maxi;
+	maxi=fabs(signal[0]);
+	for(unsigned int i=0;i<N;i++){
+		maxi=fabs(signal[i])>maxi ? fabs(signal[i]) : maxi;
+	}
+	for(unsigned int i=0;i<N;i++){
+		signal[i]/=maxi;
+	}
+}
 /*
 	This FFT has been proposed by Paul Bourke 
 	http://paulbourke.net/miscellaneous/dft/
@@ -185,15 +196,28 @@ void DFT(double *signal,
 	
 }
 
-void IDFT(double *signal, 
+/*void IDFT(double *signal, 
 		double *partie_reelle, 
 		double *partie_imaginaire, 
 		int N){
 	//m = 2^N
 	FFT(-1, trouver_m(N) ,partie_reelle, partie_imaginaire  );
 
-}
+}*/
+void filtre_passe_bas_numerique(int freq_coup,
+								int freq_echant,
+								double *partie_reelle, 
+								double *partie_imaginaire, 
+								int M){
+	int freq_coup_deb = (int) floor((M*freq_coup) / (float)freq_echant); 
+	int freq_coup_fin = M - freq_coup_deb; 
+	std::cout << "freq_coup " << freq_coup << "  freq_coup_deb " << freq_coup_deb << "  freq_coup_fin " << freq_coup_fin<< std::endl;
+	for (int k = freq_coup_deb; k < freq_coup_fin; k++){
+			partie_reelle[k] = 0.;
+			partie_imaginaire[k] = 0.;		
+	}
 
+}
 
 int main (int argc, char** argv){
 
@@ -254,6 +278,7 @@ int main (int argc, char** argv){
 	res.write("testExo2IDFT.wav");
 
 	*/
+/*	TF du 26.11
 	double duree = .5,
 			freq_echant = 44100.,
 			freq_la = 440.;
@@ -290,6 +315,51 @@ int main (int argc, char** argv){
 	}
 
 	Wave res = Wave(signal_final, n, 1, freq_echant);
-	res.write("testExo2IDFT.wav");
+	res.write("testExo2IDFT.wav");*/
+
+	
+	double duree = .5,
+			freq_echant = 44100.;
+	double freq_gamme[7] = { 440., 297., 330., 371., 396., 475., 528.,};
+
+	int n = (int) floor(freq_echant * duree);
+	int m = trouver_m(n),
+		M = (int)floor(pow(2,m));
+	double partie_reelle[M],partie_imaginaire[M];
+	double alpha;
+	std::cout << "M" << M << std::endl;
+	alpha = 2*M_PI * freq_gamme[0] / freq_echant;
+	int gamme=0, gamme_i=0;
+	for (int k = 0; k < n; k++){
+		
+		partie_reelle[k] = sin(alpha*k);
+		partie_imaginaire[k] = .0;
+		if (k % (n/7)==0 && k != 0){
+			gamme_i ++;
+			std::cout << gamme_i << " " << k << std::endl;
+			alpha = 2*M_PI * freq_gamme[gamme_i] / freq_echant;
+		}
+	}
+	for (int i = n; i < M; i++ ){
+		partie_reelle[i] = .0;
+		partie_imaginaire[i] = .0;
+	}
+	unsigned char signal_final_M[M], signal_final[n];
+	double_to_uchar(partie_reelle, signal_final, n );
+	Wave init = Wave(signal_final, n, 1, freq_echant);
+	init.write("TestGamme.wav");
+	FFT(1, m, partie_reelle, partie_imaginaire);
+	
+	//filtre_passe_bas_numerique(300, (int)freq_echant, partie_reelle, partie_imaginaire, M);
+
+	FFT(-1, m, partie_reelle, partie_imaginaire);
+	//normalize(partie_reelle,n);
+	//unsigned char  signal_final[n];
+
+	double_to_uchar(partie_reelle, signal_final, n );
+
+
+	Wave res = Wave(signal_final, n, 1, freq_echant);
+	res.write("testExo2TestGamme.wav");
 	return 0;
 }
