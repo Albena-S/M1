@@ -9,9 +9,9 @@
 </head>
 <body>
 	<span id="choixAlgo">
-		<input type="radio" id="ri0" name="algo" value="0" checked>
+		<input type="radio" id="ri0" name="algo" value="0" >
 		<label for="ri0">algo des demi-plans</label>
-		<input type="radio" id="ri1" name="algo" value="1" >
+		<input type="radio" id="ri1" name="algo" value="1" checked>
 		<label for="ri0">algo de Jarvis</label>
 		<input type="radio" id="ri2" name="algo" value="2" >
 		<label for="ri0">algo de Graham</label>
@@ -34,7 +34,6 @@
 			//	let points = (new Dataset()).initFixedPoints("p");
 			displayer = new Displayer(canvas);
 			displayer.drawPoints(points, colors, false);
-			console.log(enveloppe.envconv);
 			displayer.drawLines(enveloppe.getElements(), colors, true);
 
 		}
@@ -45,7 +44,6 @@
 			let id = e.target.id;
 			algo =  getAlgo(id);
 			enveloppe.setAlgo(algo);
-			displayer.drawLines(enveloppe.enconv, colors, false);
 		});
 		document.getElementById("canvas").addEventListener("click", initComputeAndRender);
 	</script>
