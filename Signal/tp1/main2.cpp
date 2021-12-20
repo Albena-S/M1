@@ -336,42 +336,58 @@ double Si = 494.;
 	int n = (int) floor(freq_echant * duree);
 	int m = trouver_m(n),
 		M = (int)floor(pow(2,m));
-	double partie_reelle[M],partie_imaginaire[M];
+	double partie_reelleDo[M],
+			partie_imaginaireDo[M],
+			partie_reelleMi[M],
+			partie_imaginaireMi[M],
+			partie_reelleSol[M],
+			partie_imaginaireSol[M];
 	double alpha;
 	std::cout << "M" << M << std::endl;
-	alpha = 2*M_PI * freq_gamme[0] / freq_echant;
+	double alphaDo = 2*M_PI * Do / freq_echant;
+	double alphaMi = 2*M_PI * Mi / freq_echant;
+	double alphaSol = 2*M_PI * Sol / freq_echant;
 	int gamme=0, gamme_i=0;
 	for (int k = 0; k < n; k++){
 		
-		partie_reelle[k] = sin(alpha*k);
-		partie_imaginaire[k] = .0;
-		if (k % (n/7)==0 && k != 0){
-			gamme_i ++;
-			std::cout << gamme_i << " " << k << std::endl;
-			alpha = 2*M_PI * freq_gamme[gamme_i] / freq_echant;
+		partie_reelleDo[k] = sin(alphaDo*k);
+		partie_imaginaireDo[k] = .0;
+		partie_reelleMi[k] = sin(alphaMi*k);
+		partie_imaginaireMi[k] = .0;
+		partie_reelleSol[k] = sin(alphaSol*k);
+		partie_imaginaireSol[k] = .0;
+
 		}
-	}
+	
 	for (int i = n; i < M; i++ ){
-		partie_reelle[i] = .0;
-		partie_imaginaire[i] = .0;
+		partie_reelleDo[i] = .0;
+		partie_imaginaireDo[i] = .0;
+		partie_reelleMi[i] = .0;
+		partie_imaginaireMi[i] = .0;
+		partie_reelleSol[i] = .0;
+		partie_imaginaireSol[i] = .0;
 	}
 	unsigned char signal_final_M[M], signal_final[n];
-	double_to_uchar(partie_reelle, signal_final, n );
-	Wave init = Wave(signal_final, n, 1, freq_echant);
-	init.write("Test2Gamme.wav");
-	FFT(1, m, partie_reelle, partie_imaginaire);
-	
-	filtre_passe_bas_numerique(360., (int)freq_echant, partie_reelle, partie_imaginaire, M);
+	FFT(1, m, partie_reelleDo, partie_imaginaireDo);
+	FFT(1, m, partie_reelleMi, partie_imaginaireMi);	
+	FFT(1, m, partie_reelleSol, partie_imaginaireSol);
 
-	FFT(-1, m, partie_reelle, partie_imaginaire);
+	for (int i = 0; i < M; i++ ){
+		partie_reelleDo[i] +=partie_reelleMi[i] + partie_reelleSol[i] ;
+		partie_imaginaireDo[i] += partie_imaginaireMi[i] + partie_imaginaireSol[i];
+	}
+
+	//filtre_passe_bas_numerique(360., (int)freq_echant, partie_reelle, partie_imaginaire, M);
+
+	FFT(-1, m, partie_reelleDo, partie_imaginaireDo);
 	//normalize(partie_reelle,n);
 	//unsigned char  signal_final[n];
 
-	double_to_uchar(partie_reelle, signal_final, n );
+	double_to_uchar(partie_reelleDo, signal_final, n );
 
 
 	Wave res = Wave(signal_final, n, 1, freq_echant);
-	res.write("Test2GammeFiltre.wav");
+	res.write("DoMiSolSUperposes.wav");
 	
 	return 0;
 }

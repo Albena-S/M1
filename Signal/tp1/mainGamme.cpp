@@ -330,8 +330,8 @@ double Sol = 392.;
 double La = 440.;
 double Si = 494.;
 
-	double freq_gamme[7] = { 440., 494., 262., 294., 330., 349., 392.,};
-	//double freq_gamme[7] = {Do, Re, Mi, Fa, Sol, La, Si};
+	//double freq_gamme[7] = { 440., 494., 262., 294., 330., 349., 392.,};
+	double freq_gamme[7] = {Do, Re, Mi, Fa, Sol, La, Si};
 
 	int n = (int) floor(freq_echant * duree);
 	int m = trouver_m(n),
@@ -360,9 +360,10 @@ double Si = 494.;
 	Wave init = Wave(signal_final, n, 1, freq_echant);
 	init.write("Test2Gamme.wav");
 	FFT(1, m, partie_reelle, partie_imaginaire);
-	
-	filtre_passe_bas_numerique(360., (int)freq_echant, partie_reelle, partie_imaginaire, M);
-
+	unsigned char X[m];
+	real_to_uchar_N(partie_reelle, partie_imaginaire, X, m);
+	Wave fft = Wave(X, n, 1, freq_echant);
+	fft.write("gammeFFT.wav");
 	FFT(-1, m, partie_reelle, partie_imaginaire);
 	//normalize(partie_reelle,n);
 	//unsigned char  signal_final[n];
